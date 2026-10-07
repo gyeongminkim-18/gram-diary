@@ -286,6 +286,24 @@ input, select { font: inherit; letter-spacing: inherit; color: var(--ink); }
 .onboard li { counter-increment: s; background: var(--surface); box-shadow: var(--shadow); border-radius: var(--r-inner); padding: var(--x3) var(--x4); font-weight: 600; font-size: var(--t4); display: flex; gap: var(--x3); align-items: center; }
 .onboard li::before { content: counter(s); width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-num); font-weight: 500; background: var(--glow-soft); color: var(--green-deep); flex: none; }
 
+/* jelly characters (onboarding) */
+.stage { position: relative; width: 100%; max-width: 400px; aspect-ratio: 1 / 0.92; margin: 0 auto; }
+.stage::before { content: ""; position: absolute; inset: 8% 4%; border-radius: 50%;
+  background: radial-gradient(40% 40% at 70% 25%, rgba(63,180,255,.18), transparent 70%),
+              radial-gradient(40% 40% at 25% 50%, rgba(255,90,170,.16), transparent 70%),
+              radial-gradient(50% 45% at 65% 78%, rgba(47,224,106,.2), transparent 70%); filter: blur(10px); }
+.jelly { position: absolute; display: block; animation: float var(--d, 6s) ease-in-out infinite; animation-delay: var(--delay, 0s); transform: rotate(var(--r, 0deg)); }
+.jelly svg { display: block; width: 100%; height: auto; overflow: visible; filter: drop-shadow(0 16px 22px var(--glow-c)); }
+.jelly .eyes { transform-box: fill-box; transform-origin: center; animation: blink var(--b, 5s) infinite; animation-delay: var(--delay, 0s); }
+.j-drop  { width: 38%; right: 4%; top: 0;   --r: 8deg;  --d: 5.6s; --b: 4.6s; --glow-c: rgba(31,139,255,.38); }
+.j-apple { width: 42%; left: 2%;  top: 22%; --r: -9deg; --d: 6.4s; --b: 6.2s; --delay: -2s; --glow-c: rgba(255,61,154,.34); }
+.j-cloud { width: 54%; right: 6%; top: 44%; --r: 4deg;  --d: 7.2s; --b: 5.4s; --delay: -4s; --glow-c: rgba(31,190,95,.36); }
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+  50% { transform: translateY(-14px) rotate(calc(var(--r, 0deg) + 3deg)); }
+}
+@keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.12); } }
+
 /* toast (SEED Snackbar) */
 .toast { position: fixed; left: 50%; bottom: calc(100px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 20px); background: var(--ink); color: #fff; padding: var(--x3) var(--x5); border-radius: var(--r-pill); font-size: var(--t4); font-weight: 600; opacity: 0; transition: all .25s ease; z-index: 50; pointer-events: none; white-space: nowrap; max-width: calc(100% - 32px); overflow: hidden; text-overflow: ellipsis; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
@@ -302,7 +320,6 @@ input, select { font: inherit; letter-spacing: inherit; color: var(--ink); }
 <main class="app" id="app" aria-live="polite">
   <div class="onboard">
     <p class="bigt">빠진 만큼<br>사과로 세어 드려요</p>
-    <div class="orb"><div class="in" aria-hidden="true">🍎🍌🍉</div></div>
     <p class="muted">기록을 불러오는 중이에요.</p>
   </div>
 </main>
@@ -554,10 +571,54 @@ function render() {
   if (S.tab === "chart") drawChart();
 }
 
+const JELLY = `
+<div class="stage" aria-hidden="true">
+  <svg width="0" height="0" style="position:absolute"><defs>
+    <filter id="jgrain" x="-10%" y="-10%" width="120%" height="120%">
+      <feTurbulence type="fractalNoise" baseFrequency="1.1" numOctaves="1" seed="7" result="n"/>
+      <feColorMatrix in="n" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  7 0 0 0 -5.2" result="w"/>
+      <feComposite in="w" in2="SourceGraphic" operator="in" result="specks"/>
+      <feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="specks"/></feMerge>
+    </filter>
+    <filter id="jsoft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="7"/></filter>
+    <filter id="jeye" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <radialGradient id="jgDrop" cx="50%" cy="62%" r="62%"><stop offset="0" stop-color="#1679ff"/><stop offset=".55" stop-color="#3fb0ff"/><stop offset="1" stop-color="#a6ecff"/></radialGradient>
+    <radialGradient id="jgApple" cx="50%" cy="55%" r="62%"><stop offset="0" stop-color="#ff2f93"/><stop offset=".55" stop-color="#ff63b4"/><stop offset="1" stop-color="#ffc4e3"/></radialGradient>
+    <radialGradient id="jgCloud" cx="50%" cy="52%" r="60%" gradientUnits="objectBoundingBox"><stop offset="0" stop-color="#1fd35d"/><stop offset=".55" stop-color="#47e489"/><stop offset="1" stop-color="#9af0d4"/></radialGradient>
+  </defs></svg>
+
+  <span class="jelly j-drop"><svg viewBox="0 0 200 200">
+    <g opacity=".94" filter="url(#jgrain)"><path d="M100 14C100 14 166 86 166 130A66 66 0 0 1 34 130C34 86 100 14 100 14Z" fill="url(#jgDrop)"/></g>
+    <ellipse cx="74" cy="96" rx="16" ry="28" fill="#fff" opacity=".5" filter="url(#jsoft)" transform="rotate(25 74 96)"/>
+    <g class="eyes" filter="url(#jeye)">
+      <path d="M80 122q7-9 14 0" fill="none" stroke="#fff" stroke-width="6.5" stroke-linecap="round"/>
+      <rect x="106" y="108" width="11" height="24" rx="5.5" fill="#fff"/>
+    </g>
+  </svg></span>
+
+  <span class="jelly j-apple"><svg viewBox="0 0 200 200">
+    <g opacity=".94" filter="url(#jgrain)">
+      <path d="M100 62C82 44 28 46 28 106C28 152 66 184 88 180C95 179 98 176 100 176C102 176 105 179 112 180C134 184 172 152 172 106C172 46 118 44 100 62Z" fill="url(#jgApple)"/>
+    </g>
+    <path d="M104 58C106 42 118 30 136 28C134 46 122 58 104 58Z" fill="#4fe08f" opacity=".92"/>
+    <ellipse cx="66" cy="96" rx="15" ry="26" fill="#fff" opacity=".5" filter="url(#jsoft)" transform="rotate(20 66 96)"/>
+    <g class="eyes" filter="url(#jeye)"><rect x="80" y="100" width="12" height="26" rx="6" fill="#fff"/><rect x="108" y="100" width="12" height="26" rx="6" fill="#fff"/></g>
+  </svg></span>
+
+  <span class="jelly j-cloud"><svg viewBox="0 0 220 200">
+    <g opacity=".94" filter="url(#jgrain)" fill="url(#jgCloud)">
+      <path d="M78 40a42 42 0 0 1 64 0a44 44 0 0 1 52 52a44 44 0 0 1-22 72a42 42 0 0 1-62 18a42 42 0 0 1-62-18a44 44 0 0 1-22-72a44 44 0 0 1 52-52Z"/>
+    </g>
+    <ellipse cx="70" cy="72" rx="18" ry="30" fill="#fff" opacity=".45" filter="url(#jsoft)" transform="rotate(35 70 72)"/>
+    <g class="eyes" filter="url(#jeye)"><rect x="94" y="88" width="12" height="27" rx="6" fill="#fff"/><rect x="118" y="88" width="12" height="27" rx="6" fill="#fff"/></g>
+    <path d="M104 128q8 7 16 0" fill="none" stroke="#fff" stroke-width="5" stroke-linecap="round" opacity=".9"/>
+  </svg></span>
+</div>`;
+
 function viewOnboard() {
   return `<div class="onboard">
     <p class="bigt">빠진 만큼<br>사과로 세어 드려요</p>
-    <div class="orb"><div class="in" aria-hidden="true">🍎🍌🍉</div></div>
+    ${JELLY}
     <ol>
       <li>아침마다 몸무게 한 번</li>
       <li>물 마실 때마다 한 컵씩</li>
