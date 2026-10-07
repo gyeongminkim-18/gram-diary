@@ -1,0 +1,1130 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#eef2f0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="그램">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<style>
+:root { padding-top: env(safe-area-inset-top, 0px); color-scheme: light; }
+body { margin: 0; }
+img { max-width: 100%; }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<title>그램 다이어리</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600&display=swap">
+<style>
+/* Layout: one-column phone app on cool off-white. One green glow orb is the hero;
+   everything else is white cards. Gradient only in 3 places: hero orb, glass cards, glow bars.
+   Structure = SEED rootage (x-scale spacing, t-scale type, 16px global gutter). */
+:root {
+  /* color */
+  --bg: #eef2f0;
+  --surface: #ffffff;
+  --glass: rgba(255,255,255,.66);
+  --ink: #0f1a14;            /* near-black, green-biased */
+  --ink-muted: #56625b;
+  --ink-subtle: #8c968f;
+  --line: rgba(15,26,20,.08);
+  --tick: #cdd5d0;
+  --green: #34d074;          /* vivid action / FAB */
+  --green-deep: #12854a;     /* text on white (4.6:1) */
+  --glow: #74eaa9;
+  --glow-soft: #c9f5dd;
+  --cyan: #2cc4cf;
+  --pink: #ef9ad3;
+  --violet: #a58cf6;
+  --gain: #b0458f;           /* weight-up text */
+  --shadow: 0 1px 2px rgba(15,26,20,.04), 0 10px 28px rgba(15,26,20,.06);
+  /* type */
+  --font-ui: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+  --font-num: "Outfit", var(--font-ui);
+  --t1: 0.6875rem; --t2: 0.75rem; --t3: 0.8125rem; --t4: 0.875rem; --t5: 1rem;
+  --t6: 1.125rem; --t7: 1.25rem; --t8: 1.375rem; --t9: 1.5rem; --t10: 1.625rem;
+  /* space (SEED dimension) */
+  --x1: 4px; --x1_5: 6px; --x2: 8px; --x2_5: 10px; --x3: 12px; --x4: 16px; --x5: 20px;
+  --x6: 24px; --x8: 32px; --x10: 40px; --x14: 56px;
+  /* radius */
+  --r-card: 26px; --r-inner: 16px; --r-pill: 999px;
+  color-scheme: light;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--ink); }
+body {
+  font-family: var(--font-ui); font-size: var(--t5); line-height: 1.45; letter-spacing: -0.02em;
+  -webkit-font-smoothing: antialiased; -webkit-tap-highlight-color: transparent;
+  background:
+    radial-gradient(120% 60% at 100% 0%, rgba(116,234,169,.18), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
+}
+button { font: inherit; color: inherit; letter-spacing: inherit; border: 0; background: none; cursor: pointer; padding: 0; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--green-deep); outline-offset: 2px; }
+input, select { font: inherit; letter-spacing: inherit; color: var(--ink); }
+.num { font-family: var(--font-num); font-weight: 300; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.tab-nums { font-variant-numeric: tabular-nums; }
+.muted { color: var(--ink-muted); }
+.small { font-size: var(--t3); }
+.down { color: var(--green-deep); }
+.up { color: var(--gain); }
+
+.app { max-width: 480px; margin: 0 auto; padding-inline: var(--x4); padding-block: var(--x4) calc(112px + env(safe-area-inset-bottom, 0px)); }
+.screen { display: flex; flex-direction: column; gap: var(--x3); }
+
+/* header */
+.head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--x3); padding-block: var(--x2) var(--x2); }
+.head h1 { margin: 0; font-size: var(--t9); font-weight: 700; line-height: 1.25; letter-spacing: -0.03em; text-wrap: balance; }
+.head .sub { font-size: var(--t4); color: var(--ink-muted); margin-top: 2px; }
+.round { width: 44px; height: 44px; border-radius: 50%; background: var(--surface); box-shadow: var(--shadow); display: grid; place-items: center; flex: none; }
+.round b { font-family: var(--font-num); font-weight: 500; font-size: var(--t5); line-height: 1; }
+.round small { font-size: 9px; font-weight: 700; color: var(--ink-muted); line-height: 1; margin-top: 2px; }
+.streak { display: flex; flex-direction: column; align-items: center; justify-content: center; }
+
+/* hero orb */
+.hero { position: relative; display: grid; place-items: center; padding-block: var(--x2) 0; }
+.orb { position: relative; width: min(84vw, 320px); aspect-ratio: 1; max-width: 100%; display: grid; place-items: center; }
+.orb::before {
+  content: ""; position: absolute; inset: -6%; border-radius: 50%;
+  background: radial-gradient(circle at 50% 54%, var(--glow) 0%, #9ff0c5 30%, rgba(201,245,221,.75) 50%, rgba(238,242,240,0) 70%);
+}
+.orb svg.ring { position: absolute; inset: 0; width: 100%; height: 100%; transform: rotate(-90deg); }
+.orb .in { position: relative; text-align: center; padding-inline: var(--x6); }
+.orb .label { font-size: var(--t4); color: var(--ink-muted); font-weight: 600; }
+.orb .delta { font-size: clamp(4rem, 22vw, 5.75rem); line-height: 1; font-weight: 200; margin-top: var(--x1); }
+.orb .delta small { font-size: var(--t7); font-weight: 300; margin-left: 2px; color: var(--ink-muted); }
+.orb .equiv { font-size: var(--t6); font-weight: 700; margin-top: var(--x2); line-height: 1.35; text-wrap: balance; }
+.orb .fruits { display: flex; justify-content: center; flex-wrap: wrap; gap: 2px; margin-top: var(--x2); font-size: 1.35rem; line-height: 1; min-height: 1.35rem; }
+.orb .fruits .half { clip-path: inset(0 50% 0 0); }
+.goal-line { display: flex; justify-content: center; gap: var(--x2); font-size: var(--t3); color: var(--ink-muted); margin-top: calc(-1 * var(--x2)); }
+.goal-line b { color: var(--ink); font-weight: 700; }
+.link { display: inline-flex; align-items: center; gap: var(--x1); margin: var(--x2) auto 0; font-size: var(--t4); font-weight: 600; color: var(--ink-muted); height: 40px; padding-inline: var(--x3); }
+.link svg { width: 16px; height: 16px; }
+
+/* cards */
+.card { background: var(--surface); border-radius: var(--r-card); padding: var(--x5); box-shadow: var(--shadow); position: relative; overflow: hidden; min-width: 0; }
+.card h2 { margin: 0; font-size: var(--t6); font-weight: 700; line-height: 1.3; }
+.k { font-size: var(--t4); color: var(--ink); font-weight: 600; display: flex; align-items: center; gap: var(--x1_5); }
+.k svg { width: 18px; height: 18px; flex: none; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: var(--x3); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--x3); }
+.grid2 > .card { padding: var(--x4); }
+.grid2 > .card { display: flex; flex-direction: column; }
+.push { margin-top: auto !important; padding-top: var(--x3); }
+.big { font-size: 2.5rem; line-height: 1.05; margin-top: var(--x3); }
+.big small { font-family: var(--font-num); font-size: var(--t5); font-weight: 400; color: var(--ink-muted); margin-left: 2px; }
+.meta { display: flex; justify-content: space-between; font-size: var(--t2); color: var(--ink-muted); margin-top: var(--x3); }
+.meta b { color: var(--ink); font-family: var(--font-num); font-weight: 500; font-size: var(--t4); display: block; }
+
+.glass {
+  background:
+    radial-gradient(120% 90% at 85% 0%, rgba(116,234,169,.85), rgba(116,234,169,0) 60%),
+    linear-gradient(160deg, #e3fbee 0%, #b9f0d2 100%);
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.7), var(--shadow);
+}
+.dark { background: linear-gradient(160deg, #18271f 0%, #0b130e 100%); color: #fff; }
+.dark .k, .dark .meta, .dark .meta b { color: #fff; }
+.dark .muted { color: rgba(255,255,255,.62); }
+
+/* meter: solid part + hatched remainder (ref: tick-mark tails) */
+.meter { position: relative; height: 22px; border-radius: 6px; margin-top: var(--x3); overflow: hidden;
+  background: repeating-linear-gradient(90deg, var(--tick) 0 1.5px, transparent 1.5px 5px); }
+.meter > i { position: absolute; inset: 0 auto 0 0; border-radius: 6px; background: linear-gradient(90deg, var(--cyan), var(--glow)); transition: width .5s ease; }
+.meter > i::after { content: ""; position: absolute; right: -3px; top: -3px; bottom: -3px; width: 3px; border-radius: 2px; background: var(--ink); }
+.dark .meter { background: repeating-linear-gradient(90deg, rgba(255,255,255,.22) 0 1.5px, transparent 1.5px 5px); }
+.dark .meter > i::after { background: #fff; }
+
+/* buttons (SEED action-button heights 52 / 40 / 32) */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--x1_5); border-radius: var(--r-pill); font-weight: 700; white-space: nowrap; transition: transform .12s ease; }
+.btn:active { transform: scale(0.97); }
+.btn-lg { height: 52px; padding-inline: var(--x6); font-size: var(--t5); }
+.btn-md { height: 40px; padding-inline: var(--x4); font-size: var(--t4); }
+.btn-sm { height: 32px; padding-inline: var(--x3); font-size: var(--t3); }
+.btn-solid, .btn-ink { background: var(--ink); color: #fff; }
+.btn-green { background: var(--green); color: var(--ink); }
+.btn-white, .btn-outline { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--line), 0 4px 12px rgba(15,26,20,.05); }
+.btn-block { width: 100%; }
+.mini { width: 36px; height: 36px; border-radius: 50%; display: inline-grid; place-items: center; background: rgba(255,255,255,.8); font-size: var(--t7); font-weight: 500; line-height: 1; }
+.mini.on { background: var(--ink); color: #fff; }
+
+/* water drops */
+.drops { display: flex; flex-wrap: wrap; gap: 5px; margin-top: var(--x3); }
+.drops button { width: 18px; height: 22px; padding: 0; }
+.drops svg { width: 100%; height: 100%; display: block; }
+
+/* week pills (ref: heatmap) */
+.week { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--x1_5); margin-top: var(--x4); }
+.wd { display: flex; flex-direction: column; align-items: center; gap: var(--x1_5); font-size: var(--t2); color: var(--ink-muted); font-weight: 600; }
+.pill { width: 100%; height: 26px; border-radius: 8px; background: repeating-linear-gradient(135deg, var(--tick) 0 1.5px, transparent 1.5px 5px); }
+.pill.on { background: linear-gradient(180deg, var(--glow), var(--green)); }
+.wd.today { color: var(--ink); font-weight: 800; }
+.wd.today .pill { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3.5px var(--ink); }
+
+/* cheer (ref: insight card) */
+.cheer p { margin: var(--x3) 0 var(--x4); font-size: var(--t7); line-height: 1.45; font-weight: 500; letter-spacing: -0.03em; text-wrap: pretty; min-height: 2.9em; }
+.dots { display: flex; gap: 4px; }
+.dots i { width: 6px; height: 4px; border-radius: 2px; background: rgba(15,26,20,.18); }
+.dots i.on { width: 18px; background: var(--ink); }
+
+/* segmented (SEED ChipTabs) */
+.seg { display: flex; gap: var(--x2); overflow-x: auto; scrollbar-width: none; }
+.seg button { height: 36px; padding-inline: var(--x4); border-radius: var(--r-pill); font-size: var(--t4); font-weight: 600; background: var(--surface); box-shadow: 0 0 0 1px var(--line); white-space: nowrap; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: #fff; box-shadow: none; }
+
+/* chart */
+.chart-wrap { margin-top: var(--x2); }
+.chart-wrap svg { display: block; width: 100%; height: auto; overflow: visible; }
+.legend { display: flex; gap: var(--x3); font-size: var(--t2); color: var(--ink-muted); font-weight: 600; }
+.legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 4px; vertical-align: 0; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--x2); }
+.stats .card { padding: var(--x4) var(--x3); }
+.stats .v { font-size: var(--t9); margin-top: var(--x1); }
+.stats .l { font-size: var(--t2); color: var(--ink-muted); font-weight: 600; }
+
+/* list (SEED list item) */
+.list { display: flex; flex-direction: column; margin-top: var(--x2); }
+.li { display: flex; align-items: center; gap: var(--x3); min-height: 60px; padding-block: var(--x2); border-bottom: 1px solid var(--line); text-align: left; width: 100%; }
+.li:last-child { border-bottom: 0; }
+.li .main { flex: 1; min-width: 0; }
+.li .t { font-weight: 600; font-size: var(--t4); }
+.li .s { font-size: var(--t3); color: var(--ink-muted); }
+.li .r { text-align: right; }
+.li .r .num { font-size: var(--t7); font-weight: 400; }
+.empty { padding: var(--x6) var(--x2); text-align: center; color: var(--ink-muted); font-size: var(--t4); }
+
+/* glow bars (exercise) */
+.bars { display: grid; grid-template-columns: repeat(7, 1fr); gap: var(--x2); align-items: end; height: 140px; margin-top: var(--x5); }
+.bar { display: flex; flex-direction: column; align-items: center; gap: var(--x1_5); height: 100%; justify-content: flex-end; }
+.bar .col { position: relative; width: 100%; flex: 1; display: flex; align-items: flex-end; justify-content: center; }
+.bar .col i { width: 16px; border-radius: 9px; background: linear-gradient(180deg, var(--cyan) 0%, var(--glow) 45%, rgba(116,234,169,0) 100%); filter: blur(2.5px); }
+.bar .col i.zero { height: 3px !important; background: var(--tick); filter: none; }
+.bar .col b { position: absolute; font-size: var(--t2); font-family: var(--font-num); font-weight: 500; }
+.bar span { font-size: var(--t2); font-weight: 600; color: var(--ink-muted); }
+.bar.today span { color: var(--ink); font-weight: 800; }
+
+/* tiles */
+.tile .v { font-size: 2rem; margin-top: var(--x3); line-height: 1.05; }
+.tile .v small { font-family: var(--font-ui); font-size: var(--t3); font-weight: 600; color: var(--ink-muted); margin-left: 2px; }
+.tile .d { font-size: var(--t2); color: var(--ink-muted); margin-top: var(--x1_5); line-height: 1.4; }
+.bmi-bar { position: relative; height: 10px; border-radius: var(--r-pill); margin-top: var(--x5);
+  background: linear-gradient(90deg, var(--violet) 0%, var(--cyan) 30%, var(--green) 52.8%, #e9d45c 65.7%, #f2884b 71.4%, #e5566f 100%); }
+.bmi-pin { position: absolute; top: 50%; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 4px var(--ink); transform: translate(-50%, -50%); }
+.bmi-labels { position: relative; height: 16px; font-size: var(--t1); color: var(--ink-muted); font-weight: 600; margin-top: var(--x2); }
+.bmi-labels span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.chip { display: inline-flex; align-items: center; height: 28px; padding-inline: var(--x3); border-radius: var(--r-pill); font-size: var(--t3); font-weight: 700; background: var(--glow-soft); color: var(--green-deep); }
+
+/* floating tab bar (ref: pill nav + FAB) */
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 20; pointer-events: none;
+  padding: 0 var(--x4) calc(var(--x3) + env(safe-area-inset-bottom, 0px)); }
+.tabbar .wrap { max-width: 448px; margin: 0 auto; display: flex; align-items: center; gap: var(--x2); }
+.tabbar nav { pointer-events: auto; flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2px; padding: 6px;
+  border-radius: var(--r-pill); background: rgba(255,255,255,.78); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 0 0 1px rgba(255,255,255,.9), 0 12px 32px rgba(15,26,20,.12); }
+.tabbar nav button { height: 52px; border-radius: var(--r-pill); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 10px; font-weight: 700; color: var(--ink-subtle); }
+.tabbar nav button svg { width: 22px; height: 22px; }
+.tabbar nav button[aria-selected="true"] { color: #fff; background: var(--ink); }
+.fab { pointer-events: auto; width: 64px; height: 64px; border-radius: 50%; flex: none; display: grid; place-items: center;
+  background: var(--ink); color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.12), 0 1px 2px rgba(15,26,20,.1), 0 10px 24px rgba(15,26,20,.22);
+  transition: transform .12s ease; }
+.fab:active { transform: scale(0.95); }
+.fab svg { width: 24px; height: 24px; }
+
+/* bottom sheet (SEED BottomSheet) */
+.scrim { position: fixed; inset: 0; background: rgba(15,26,20,.32); backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); z-index: 40; opacity: 0; transition: opacity .2s ease; }
+.scrim.show { opacity: 1; }
+.sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 41; max-width: 480px; margin: 0 auto;
+  background: var(--surface); border-radius: 28px 28px 0 0; max-height: 92%; overflow-y: auto;
+  padding: var(--x3) var(--x5) calc(var(--x5) + env(safe-area-inset-bottom, 0px));
+  transform: translateY(100%); transition: transform .28s cubic-bezier(.2,.8,.2,1); }
+.sheet.show { transform: translateY(0); }
+.sheet .grab { width: 36px; height: 4px; border-radius: 2px; background: var(--tick); margin: 0 auto var(--x4); }
+.sheet h3 { margin: 0 0 var(--x1); font-size: var(--t8); font-weight: 700; }
+.sheet .desc { margin: 0 0 var(--x5); color: var(--ink-muted); font-size: var(--t4); }
+.field { display: flex; flex-direction: column; gap: var(--x1_5); margin-bottom: var(--x4); }
+.field label { font-size: var(--t3); font-weight: 700; color: var(--ink-muted); }
+.field input, .field select { height: 52px; border-radius: 14px; border: 0; box-shadow: inset 0 0 0 1px var(--line); background: #f5f8f6; padding-inline: var(--x4); font-size: var(--t5); font-weight: 600; width: 100%; }
+.field-row { display: grid; grid-template-columns: 1fr 1fr; gap: var(--x3); }
+.stepper { position: relative; display: flex; align-items: center; justify-content: center; gap: var(--x4); margin-block: var(--x4) var(--x6); padding-block: var(--x4); }
+.stepper::before { content: ""; position: absolute; left: 50%; top: 50%; width: 220px; height: 220px; transform: translate(-50%, -50%); border-radius: 50%;
+  background: radial-gradient(circle, rgba(116,234,169,.55), rgba(116,234,169,0) 65%); pointer-events: none; }
+.stepper .val { position: relative; font-size: 3.5rem; font-weight: 200; text-align: center; border: 0; background: transparent; width: 4.2ch; font-family: var(--font-num); padding: 0; letter-spacing: -0.03em; }
+.stepper .unit { position: relative; font-family: var(--font-num); font-weight: 400; font-size: var(--t6); color: var(--ink-muted); margin-left: -12px; }
+.step-btn { position: relative; width: 52px; height: 52px; border-radius: 50%; background: var(--surface); box-shadow: 0 0 0 1px var(--line), 0 4px 12px rgba(15,26,20,.06); font-size: var(--t9); font-weight: 400; display: grid; place-items: center; }
+.sheet-actions { display: flex; gap: var(--x2); }
+.sheet-actions .btn { flex: 1; }
+.seg-sex { display: grid; grid-template-columns: 1fr 1fr; gap: var(--x2); }
+.seg-sex button { height: 52px; border-radius: 14px; background: #f5f8f6; box-shadow: inset 0 0 0 1px var(--line); font-weight: 700; }
+.seg-sex button[aria-pressed="true"] { background: var(--ink); color: #fff; box-shadow: none; }
+.ex-types { display: flex; flex-wrap: wrap; gap: var(--x2); }
+.ex-types button { height: 36px; padding-inline: 14px; border-radius: var(--r-pill); background: #f5f8f6; box-shadow: inset 0 0 0 1px var(--line); font-weight: 600; font-size: var(--t4); }
+.ex-types button[aria-pressed="true"] { background: var(--ink); color: #fff; box-shadow: none; }
+.quick { display: grid; gap: var(--x2); }
+.quick button { display: flex; align-items: center; gap: var(--x3); height: 64px; padding-inline: var(--x4); border-radius: 18px; background: #f5f8f6; text-align: left; font-weight: 700; }
+.quick button .ic { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); box-shadow: 0 0 0 1px var(--line); }
+.quick button .ic svg { width: 20px; height: 20px; }
+.quick button small { display: block; font-size: var(--t3); color: var(--ink-muted); font-weight: 500; }
+
+.field textarea { min-height: 120px; border-radius: 14px; border: 0; box-shadow: inset 0 0 0 1px var(--line); background: #f5f8f6; padding: var(--x3) var(--x4); font: 500 var(--t3)/1.5 ui-monospace, Menlo, monospace; letter-spacing: 0; width: 100%; resize: vertical; color: var(--ink); }
+.file-btn { position: relative; overflow: hidden; }
+.file-btn input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+/* onboarding */
+.onboard { display: flex; flex-direction: column; gap: var(--x4); padding-top: var(--x4); }
+.onboard .bigt { font-size: 2.4rem; line-height: 1.12; font-weight: 700; margin: 0; letter-spacing: -0.04em; text-wrap: balance; }
+.onboard .orb { margin: 0 auto; width: min(70vw, 260px); }
+.onboard .orb .in { font-size: 2.6rem; display: flex; gap: var(--x2); }
+.onboard ol { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--x2); counter-reset: s; }
+.onboard li { counter-increment: s; background: var(--surface); box-shadow: var(--shadow); border-radius: var(--r-inner); padding: var(--x3) var(--x4); font-weight: 600; font-size: var(--t4); display: flex; gap: var(--x3); align-items: center; }
+.onboard li::before { content: counter(s); width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-family: var(--font-num); font-weight: 500; background: var(--glow-soft); color: var(--green-deep); flex: none; }
+
+/* toast (SEED Snackbar) */
+.toast { position: fixed; left: 50%; bottom: calc(100px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 20px); background: var(--ink); color: #fff; padding: var(--x3) var(--x5); border-radius: var(--r-pill); font-size: var(--t4); font-weight: 600; opacity: 0; transition: all .25s ease; z-index: 50; pointer-events: none; white-space: nowrap; max-width: calc(100% - 32px); overflow: hidden; text-overflow: ellipsis; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.sync { font-size: var(--t2); color: var(--ink-subtle); text-align: center; padding-top: var(--x4); }
+.danger { color: var(--gain); }
+
+@keyframes pop { 0% { transform: scale(1); } 40% { transform: scale(1.15); } 100% { transform: scale(1); } }
+.pop { animation: pop .35s ease; display: inline-block; }
+@keyframes breathe { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+.orb::before { animation: breathe 6s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
+</style>
+
+<main class="app" id="app" aria-live="polite">
+  <div class="onboard">
+    <p class="bigt">빠진 만큼<br>사과로 세어 드려요</p>
+    <div class="orb"><div class="in" aria-hidden="true">🍎🍌🍉</div></div>
+    <p class="muted">기록을 불러오는 중이에요.</p>
+  </div>
+</main>
+
+<div class="tabbar" id="tabbar" hidden>
+  <div class="wrap">
+    <nav role="tablist" aria-label="화면 이동">
+      <button role="tab" data-tab="home" aria-selected="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10.5 12 4l8 6.5V19a1 1 0 0 1-1 1h-4.5v-5.5h-5V20H5a1 1 0 0 1-1-1z"/></svg>오늘</button>
+      <button role="tab" data-tab="chart" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 17l5-6 4 3 7-8"/><path d="M4 21h16"/></svg>몸무게</button>
+      <button role="tab" data-tab="move" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="4.5" r="2"/><path d="M8 21l3-6 3 2v4M6 12l3-4 4 1 2 3 3 1"/></svg>운동</button>
+      <button role="tab" data-tab="me" aria-selected="false">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 3v9h9a9 9 0 0 0-9-9z"/></svg>권장량</button>
+    </nav>
+    <button class="fab" id="fab" aria-label="빠른 기록">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5.5v13M5.5 12h13"/></svg>
+    </button>
+  </div>
+</div>
+
+<div class="scrim" id="scrim" hidden></div>
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" hidden></section>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* ───────── constants ───────── */
+const FOODS = [ // grams per unit, ascending
+  { g: 15,    e: "🍅", n: "방울토마토", u: "개" },
+  { g: 60,    e: "🥚", n: "달걀",       u: "개" },
+  { g: 120,   e: "🍌", n: "바나나",     u: "개" },
+  { g: 250,   e: "🍎", n: "사과",       u: "개" },
+  { g: 500,   e: "🧃", n: "생수 500ml", u: "병" },
+  { g: 1000,  e: "🥛", n: "우유 1L",    u: "팩" },
+  { g: 1500,  e: "🍍", n: "파인애플",   u: "개" },
+  { g: 6000,  e: "🍉", n: "수박",       u: "통" },
+  { g: 10000, e: "🍚", n: "쌀 10kg",    u: "포대" },
+];
+const EXERCISES = [ // MET values (Compendium of Physical Activities)
+  { id: "walk",  n: "걷기",       met: 3.5 },
+  { id: "fast",  n: "빠르게 걷기", met: 4.3 },
+  { id: "run",   n: "달리기",     met: 8.0 },
+  { id: "cycle", n: "자전거",     met: 6.0 },
+  { id: "swim",  n: "수영",       met: 6.0 },
+  { id: "home",  n: "홈트",       met: 4.0 },
+  { id: "gym",   n: "근력",       met: 5.0 },
+  { id: "yoga",  n: "요가·필라테스", met: 3.0 },
+  { id: "stair", n: "계단",       met: 8.0 },
+  { id: "rope",  n: "줄넘기",     met: 10.0 },
+  { id: "hike",  n: "등산",       met: 6.0 },
+];
+const ACTIVITY = [
+  { v: 1.2,   n: "거의 안 움직여요" },
+  { v: 1.375, n: "주 1~3회 가볍게" },
+  { v: 1.55,  n: "주 3~5회 운동" },
+  { v: 1.725, n: "거의 매일 운동" },
+];
+const CUP = 250;
+const WEEK_GOAL_MIN = 150; // WHO 권장 중강도 주 150분
+
+/* ───────── state ───────── */
+const S = { profile: null, days: {}, tab: "home", range: "30", exType: "walk", cheerIdx: 0 };
+const LS_KEY = "gram-diary.v1";
+let db = null, col = null;
+
+function lsLoad() { try { const r = localStorage.getItem(LS_KEY); if (r) { const o = JSON.parse(r); S.profile = o.profile || null; S.days = o.days || {}; } } catch (e) {} }
+function lsSave() { try { localStorage.setItem(LS_KEY, JSON.stringify({ profile: S.profile, days: S.days })); } catch (e) {} }
+
+/* ───────── date utils ───────── */
+const pad = n => String(n).padStart(2, "0");
+const keyOf = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const todayKey = () => keyOf(new Date());
+const parseKey = k => { const [y, m, d] = k.split("-").map(Number); return new Date(y, m - 1, d); };
+const addDays = (k, n) => { const d = parseKey(k); d.setDate(d.getDate() + n); return keyOf(d); };
+const WD = ["일", "월", "화", "수", "목", "금", "토"];
+const fmtLong = k => { const d = parseKey(k); return `${d.getMonth() + 1}월 ${d.getDate()}일 ${WD[d.getDay()]}요일`; };
+const fmtShort = k => { const d = parseKey(k); return `${d.getMonth() + 1}.${d.getDate()}`; };
+
+/* ───────── derived ───────── */
+const day = k => S.days[k] || {};
+const weighed = () => Object.keys(S.days).filter(k => typeof S.days[k].weight === "number").sort();
+function latestWeight() { const ks = weighed(); return ks.length ? { k: ks[ks.length - 1], w: S.days[ks[ks.length - 1]].weight } : null; }
+function prevWeightBefore(k) { const ks = weighed().filter(x => x < k); return ks.length ? S.days[ks[ks.length - 1]].weight : null; }
+const curWeight = () => (latestWeight()?.w ?? S.profile?.startWeight);
+const r1 = n => Math.round(n * 10) / 10;
+const sign = n => (n > 0 ? "+" : n < 0 ? "−" : "±") + Math.abs(r1(n)).toFixed(1);
+
+function rec() {
+  const p = S.profile, w = curWeight(), h = p.height, a = p.age;
+  const bmr = 10 * w + 6.25 * h - 5 * a + (p.sex === "m" ? 5 : -161);
+  const tdee = bmr * p.activity;
+  const floor = p.sex === "m" ? 1500 : 1200;
+  const kcal = Math.max(floor, Math.round((tdee - 500) / 10) * 10);
+  const water = Math.round((w * 33) / 50) * 50;
+  const protein = Math.round(w * 1.2);
+  const bmi = w / Math.pow(h / 100, 2);
+  const bmiLabel = bmi < 18.5 ? "저체중" : bmi < 23 ? "정상" : bmi < 25 ? "비만 전단계" : "비만";
+  const toGoal = w - p.goalWeight;
+  const weeks = toGoal > 0 ? Math.ceil(toGoal / 0.5) : 0;
+  return { bmr: Math.round(bmr), tdee: Math.round(tdee), kcal, water, protein, bmi, bmiLabel, weeks, toGoal };
+}
+
+function equivalent(kg) {
+  const g = Math.abs(kg) * 1000;
+  if (g < 10) return null;
+  // smallest food that fits in ≤ 5 pieces: "사과 3개" reads better than "우유 1팩"
+  const f = FOODS.find(x => g / x.g <= 5.25) || FOODS[FOODS.length - 1];
+  let c = g / f.g;
+  c = c < 1.25 ? 1 : Math.round(c * 2) / 2;
+  return { ...f, c };
+}
+
+function streak() {
+  let k = todayKey(), n = 0;
+  if (!hasLog(k)) k = addDays(k, -1);
+  while (hasLog(k)) { n++; k = addDays(k, -1); }
+  return n;
+}
+const hasLog = k => { const d = S.days[k]; return !!d && (typeof d.weight === "number" || (d.water || 0) > 0 || (d.ex || []).length > 0); };
+
+const exMin = k => (day(k).ex || []).reduce((s, e) => s + e.min, 0);
+const exKcal = k => (day(k).ex || []).reduce((s, e) => s + e.kcal, 0);
+
+/* ───────── cheer ───────── */
+function cheers() {
+  const lw = latestWeight(), p = S.profile;
+  const out = [];
+  if (lw) {
+    const d = lw.w - p.startWeight;
+    const e = equivalent(d);
+    if (d < 0 && e) out.push(`처음 잰 날보다 ${e.n} ${fmtCount(e.c)}${e.u}만큼 빠졌어요. 잘하고 있어요!`);
+    if (d >= 0) out.push("몸무게는 하루에도 1~2kg씩 왔다 갔다 해요. 그래프로 일주일을 보면 덜 흔들려요.");
+    const pr = prevWeightBefore(lw.k);
+    if (pr != null && lw.w < pr) out.push("지난번보다 줄었네요! 어제 먹은 거 기억해 뒀다가 오늘도 그렇게 해 봐요.");
+    if (pr != null && lw.w > pr) out.push("하루 만에 오른 건 거의 물이에요. 짜게 먹은 다음 날엔 원래 그래요.");
+  }
+  const s = streak();
+  if (s >= 3) out.push(`${s}일째 빠짐없이 적었어요. 이것만 해도 반은 한 거예요.`);
+  out.push("어제 좀 많이 먹었어도 괜찮아요. 한 끼로 망하지 않아요.");
+  out.push("배고프면 물부터 한 잔 마셔 봐요. 10분 지나도 배고프면 그땐 드셔도 돼요.");
+  out.push("오늘은 10분만 걸어도 돼요. 엘리베이터 말고 계단 타면 그것도 쳐 줄게요.");
+  out.push("밥 먹을 때 고기나 두부부터 먹어 봐요. 밥이 덜 들어가요.");
+  out.push("자기 전에 출출하면 따뜻한 차 한 잔 어때요?");
+  return out;
+}
+const fmtCount = c => (Number.isInteger(c) ? String(c) : c.toFixed(1));
+
+/* ───────── persistence ───────── */
+const writing = new Map();
+const pending = new Map();
+const timers = new Map();
+function queueWrite(id, body) {
+  lsSave();
+  if (!col) return;
+  clearTimeout(timers.get(id));
+  timers.set(id, setTimeout(() => flush(id, body), 500));
+}
+async function flush(id, body) {
+  if (!col) return;
+  if (writing.get(id)) { pending.set(id, body); return; }
+  writing.set(id, true);
+  try {
+    if (body === null) await col.doc(id).delete(); else await col.doc(id).set(JSON.parse(JSON.stringify(body)));
+    dbOk = true;
+  } catch (e) {
+    if (e && e.code === "quota_exceeded") toast("저장 공간이 가득 찼어요");
+    else if (e && e.code === "unavailable") setTimeout(() => flush(id, body), 1500 + Math.random() * 1000);
+    else goLocal(); // e.g. a viewer from another account who may not write here
+  } finally {
+    writing.set(id, false);
+    if (pending.has(id)) { const b = pending.get(id); pending.delete(id); flush(id, b); }
+  }
+}
+function saveDay(k) {
+  const d = S.days[k];
+  const empty = !d || (typeof d.weight !== "number" && !(d.water > 0) && !(d.ex || []).length && !(d.resist > 0));
+  if (empty) delete S.days[k];
+  queueWrite("d-" + k, empty ? null : { ...S.days[k], date: k });
+}
+function saveProfile() { queueWrite("profile", S.profile); }
+function patchDay(k, patch) { S.days[k] = { ...day(k), ...patch }; saveDay(k); }
+
+const LOCAL_TEXT = "이 기기에만 저장 중 · 백업을 가끔 받아 두세요";
+let dbOk = false, unsub = null;
+function goLocal() {
+  if (unsub) { unsub(); unsub = null; }
+  col = null; lsSave(); setSync(LOCAL_TEXT);
+}
+async function connect() {
+  if (!window.claude?.use) return setSync(LOCAL_TEXT);
+  try {
+    const [d, u] = await Promise.all([claude.use("db"), claude.use("user")]);
+    const uid = u ? await u.id() : null;
+    if (!d || !uid) return setSync(LOCAL_TEXT);
+    db = d; col = db.collection("data/users/" + uid);
+    let migrated = false;
+    unsub = col.onSnapshot(snap => {
+      if (!col) return;
+      if (snap.metadata.hasPendingWrites) return;
+      if (snap.empty && !dbOk) {
+        // nothing in the account yet (or this viewer cannot see/write it): keep local records,
+        // try once to upload them; a refused write switches the app to local-only.
+        if (!migrated && (S.profile || Object.keys(S.days).length)) {
+          migrated = true;
+          if (S.profile) flush("profile", S.profile);
+          Object.keys(S.days).forEach(k => flush("d-" + k, { ...S.days[k], date: k }));
+        }
+        return;
+      }
+      dbOk = true;
+      const days = {}; let profile = null;
+      snap.docs.forEach(doc => {
+        const b = doc.data(); if (!b) return;
+        if (doc.id === "profile") profile = b;
+        else if (doc.id.startsWith("d-")) { const { date, ...rest } = b; days[doc.id.slice(2)] = rest; }
+      });
+      S.profile = profile; S.days = days; lsSave();
+      setSync("계정에 저장 중 · 어느 기기에서든 이어서");
+      if (!document.getElementById("sheet").classList.contains("show")) render();
+    }, () => goLocal());
+  } catch (e) { setSync(LOCAL_TEXT); }
+}
+let syncText = "";
+function setSync(t) { syncText = t; const el = document.getElementById("sync"); if (el) el.textContent = t; }
+
+/* ───────── render ───────── */
+const $app = document.getElementById("app");
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const IC = {
+  scale: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><path d="M8.5 9.5a5 5 0 0 1 7 0"/><path d="M12 9.5l1.2-1.6"/></svg>`,
+  drop: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5s6 6.4 6 10.6a6 6 0 0 1-12 0C6 9.9 12 3.5 12 3.5z"/></svg>`,
+  run: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="14" cy="4.5" r="2"/><path d="M8 21l3-6 3 2v4M6 12l3-4 4 1 2 3 3 1"/></svg>`,
+  hand: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z"/></svg>`,
+  spark: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z"/></svg>`,
+  cal: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>`,
+  chev: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>`,
+};
+const dropSvg = on => `<svg viewBox="0 0 18 22"><path d="M9 1.5s7 7.3 7 12a7 7 0 0 1-14 0c0-4.7 7-12 7-12z" fill="${on ? "url(#dg)" : "none"}" stroke="${on ? "none" : "#b9c4be"}" stroke-width="1.5"/></svg>`;
+
+function render() {
+  const tb = document.getElementById("tabbar");
+  if (!S.profile) { tb.hidden = true; $app.innerHTML = viewOnboard(); bindOnboard(); return; }
+  tb.hidden = false;
+  tb.querySelectorAll("[data-tab]").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === S.tab)));
+  const v = { home: viewHome, chart: viewChart, move: viewMove, me: viewMe }[S.tab];
+  $app.innerHTML = `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="dg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2cc4cf"/><stop offset="1" stop-color="#74eaa9"/></linearGradient></defs></svg>
+    <div class="screen">${v()}<p class="sync" id="sync">${esc(syncText)}</p></div>`;
+  if (S.tab === "chart") drawChart();
+}
+
+function viewOnboard() {
+  return `<div class="onboard">
+    <p class="bigt">빠진 만큼<br>사과로 세어 드려요</p>
+    <div class="orb"><div class="in" aria-hidden="true">🍎🍌🍉</div></div>
+    <ol>
+      <li>아침마다 몸무게 한 번</li>
+      <li>물 마실 때마다 한 컵씩</li>
+      <li>움직인 만큼 운동 기록</li>
+    </ol>
+    <button class="btn btn-lg btn-solid btn-block" id="start">시작하기</button>
+    <button class="btn btn-md btn-block" id="restore" style="color:var(--ink-muted)">백업이 있어요</button>
+  </div>`;
+}
+function bindOnboard() { document.getElementById("start").onclick = () => openProfile(true); document.getElementById("restore").onclick = openRestore; }
+
+function ring(p) {
+  const r = 48, c = 2 * Math.PI * r, a = Math.max(0, Math.min(1, p));
+  const ang = a * 2 * Math.PI, cx = 50 + r * Math.cos(ang), cy = 50 + r * Math.sin(ang);
+  return `<svg class="ring" viewBox="0 0 100 100" aria-hidden="true">
+    <circle cx="50" cy="50" r="${r}" fill="none" stroke="#ffffff" stroke-opacity=".9" stroke-width=".8"/>
+    ${a > 0 ? `<circle cx="50" cy="50" r="${r}" fill="none" stroke="#0f1a14" stroke-width="1.4" stroke-linecap="round" stroke-dasharray="${(c * a).toFixed(2)} ${c.toFixed(2)}"/>` : ""}
+    <circle cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r="2.2" fill="#0f1a14"/><circle cx="${cx.toFixed(2)}" cy="${cy.toFixed(2)}" r=".9" fill="#fff"/>
+  </svg>`;
+}
+
+function viewHome() {
+  const p = S.profile, t = todayKey(), lw = latestWeight();
+  const cur = curWeight(), delta = cur - p.startWeight, e = equivalent(delta);
+  const total = p.startWeight - p.goalWeight;
+  const prog = total > 0 ? Math.max(0, Math.min(1, (p.startWeight - cur) / total)) : 0;
+  const left = Math.max(0, cur - p.goalWeight);
+  let equivText, fruits = "";
+  if (!lw || !e) equivText = lw ? "시작이랑 거의 같아요" : "첫 몸무게를 남겨 볼까요?";
+  else {
+    equivText = `${e.n} ${fmtCount(e.c)}${e.u}만큼 ${delta < 0 ? "빠졌어요" : "쪘어요"}`;
+    const full = Math.min(8, Math.floor(e.c)), half = e.c % 1 && full < 8;
+    fruits = Array.from({ length: full }, () => `<span>${e.e}</span>`).join("") + (half ? `<span class="half">${e.e}</span>` : "");
+  }
+  const tw = day(t).weight, prev = prevWeightBefore(t);
+  const wDiff = typeof tw === "number" && prev != null ? tw - prev : null;
+  const title = typeof tw !== "number" ? "오늘 몸무게를 재 볼까요?" : delta < -0.05 ? "잘 빠지고 있어요" : "오늘도 천천히 가요";
+  const R = rec();
+  const water = day(t).water || 0, cups = Math.ceil(R.water / CUP), filled = Math.floor(water / CUP);
+  const drops = Array.from({ length: Math.max(cups, filled) }, (_, i) =>
+    `<button data-cup="${i}" aria-label="물 ${(i + 1) * CUP}ml까지 기록">${dropSvg(i < filled)}</button>`).join("");
+  const resist = day(t).resist || 0;
+  const list = cheers(), idx = S.cheerIdx % list.length, msg = list[idx];
+  const s = streak();
+  const weekMin = Array.from({ length: 7 }, (_, i) => exMin(addDays(t, i - 6))).reduce((a, b) => a + b, 0);
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const k = addDays(t, i - 6);
+    return `<div class="wd ${k === t ? "today" : ""}"><span class="pill ${hasLog(k) ? "on" : ""}"></span>${WD[parseKey(k).getDay()]}</div>`;
+  }).join("");
+
+  return `
+  <header class="head">
+    <div><h1>${title}</h1><div class="sub">${fmtLong(t)}</div></div>
+    <div class="round streak" aria-label="${s}일 연속 기록"><b>${s}</b><small>일째</small></div>
+  </header>
+
+  <section class="hero" aria-label="시작 대비 변화">
+    <div class="orb">
+      ${ring(prog)}
+      <div class="in">
+        <div class="label">시작 ${p.startWeight.toFixed(1)}kg보다</div>
+        <div class="delta num">${lw ? sign(delta) : "0.0"}<small>kg</small></div>
+        <div class="equiv">${equivText}</div>
+        ${fruits ? `<div class="fruits" aria-hidden="true">${fruits}</div>` : ""}
+      </div>
+    </div>
+  </section>
+  <div class="goal-line tab-nums"><span>목표 ${p.goalWeight.toFixed(1)}kg까지 <b>${left.toFixed(1)}kg</b></span><span>·</span><span><b>${Math.round(prog * 100)}%</b> 왔어요</span></div>
+  <button class="link" data-act="weight">${typeof tw === "number" ? "오늘 몸무게 고치기" : "오늘 몸무게 기록하기"} ${IC.chev}</button>
+
+  <div class="grid2">
+    <section class="card">
+      <div class="k">${IC.scale}오늘 몸무게</div>
+      ${typeof tw === "number"
+        ? `<div class="big num">${tw.toFixed(1)}<small>kg</small></div>
+           <div class="meta push"><span>지난 기록보다</span></div>
+           <div class="small tab-nums ${wDiff < 0 ? "down" : wDiff > 0 ? "up" : "muted"}" style="font-weight:700;margin-top:2px">${wDiff != null ? sign(wDiff) + "kg" : "첫 기록이에요"}</div>`
+        : `<div class="big num" style="color:var(--ink-subtle)">--.-<small>kg</small></div>
+           <div class="small muted push">아침 공복에 재면 가장 정확해요</div>`}
+    </section>
+    <section class="card glass">
+      <div class="row"><div class="k">${IC.drop}물</div><span class="small" style="font-weight:700">${Math.max(0, cups - filled)}컵 남음</span></div>
+      <div class="big num">${(water / 1000).toFixed(2)}<small>/ ${(R.water / 1000).toFixed(1)}L</small></div>
+      <div class="drops">${drops}</div>
+      <div class="row" style="margin-top:12px;justify-content:flex-start;gap:8px">
+        <button class="mini" data-act="water-" aria-label="한 컵 빼기">−</button>
+        <button class="mini on" data-act="water+" aria-label="한 컵(250ml) 더하기">+</button>
+      </div>
+    </section>
+  </div>
+
+  <section class="card">
+    <div class="row"><div class="k">${IC.run}운동</div><button class="btn btn-sm btn-white" data-act="ex-add">추가</button></div>
+    <div class="row" style="align-items:flex-end">
+      <div class="big num">${exMin(t)}<small>분 · ${exKcal(t)}kcal</small></div>
+    </div>
+    <div class="meter" role="img" aria-label="이번 주 ${weekMin}분 / ${WEEK_GOAL_MIN}분"><i style="width:${Math.min(100, weekMin / WEEK_GOAL_MIN * 100).toFixed(1)}%"></i></div>
+    <div class="meta"><span>최근 7일 <b>${weekMin}분</b></span><span style="text-align:right">권장 <b>${WEEK_GOAL_MIN}분</b></span></div>
+  </section>
+
+  <section class="card glass cheer" aria-label="응원 한마디">
+    <div class="row"><div class="k">${IC.spark}오늘의 응원</div><button class="btn btn-sm btn-white" data-act="cheer">다른 말</button></div>
+    <p>${esc(msg)}</p>
+    <div class="dots" aria-hidden="true">${list.map((_, i) => `<i class="${i === idx ? "on" : ""}"></i>`).join("")}</div>
+  </section>
+
+  <div class="grid2">
+    <section class="card dark" aria-label="참기 성공">
+      <div class="k">${IC.hand}참았다!</div>
+      <div class="big num"><span class="${S._popResist ? "pop" : ""}">${resist}</span><small style="color:rgba(255,255,255,.6)">번</small></div>
+      <div class="small muted" style="margin-top:4px">야식·간식 참은 횟수</div>
+      <button class="btn btn-md btn-green btn-block" style="margin-top:14px" data-act="resist">참았어요 +1</button>
+    </section>
+    <section class="card">
+      <div class="k">${IC.cal}이번 주</div>
+      <div class="big num">${Array.from({ length: 7 }, (_, i) => hasLog(addDays(t, i - 6))).filter(Boolean).length}<small>/ 7일</small></div>
+      <div class="week">${week}</div>
+    </section>
+  </div>`;
+}
+
+function rangeKeys() {
+  const ks = weighed();
+  if (S.range === "all") return ks;
+  const from = addDays(todayKey(), -(Number(S.range) - 1));
+  return ks.filter(k => k >= from);
+}
+
+function viewChart() {
+  const ks = rangeKeys(), all = weighed().slice().reverse();
+  const ws = ks.map(k => S.days[k].weight);
+  const min = ws.length ? Math.min(...ws) : null, avg = ws.length ? ws.reduce((a, b) => a + b, 0) / ws.length : null;
+  const chg = ws.length > 1 ? ws[ws.length - 1] - ws[0] : null;
+  const ranges = [["7", "1주"], ["30", "1달"], ["90", "3달"], ["all", "전체"]];
+  const rows = all.map(k => {
+    const w = S.days[k].weight, pr = prevWeightBefore(k), d = pr != null ? w - pr : null;
+    return `<button class="li" data-edit="${k}">
+      <div class="main"><div class="t">${fmtLong(k)}</div><div class="s tab-nums">시작보다 ${sign(w - S.profile.startWeight)}kg</div></div>
+      <div class="r tab-nums"><div class="num">${w.toFixed(1)}</div>${d != null ? `<div class="small ${d < 0 ? "down" : d > 0 ? "up" : "muted"}" style="font-weight:700">${sign(d)}</div>` : ""}</div>
+    </button>`;
+  }).join("");
+  return `
+  <header class="head">
+    <div><h1>몸무게</h1><div class="sub">하루하루보다 흐름을 봐요</div></div>
+    <button class="btn btn-md btn-solid" data-act="weight">기록</button>
+  </header>
+  <div class="seg" role="group" aria-label="기간">${ranges.map(([v, l]) => `<button data-range="${v}" aria-pressed="${S.range === v}">${l}</button>`).join("")}</div>
+  <section class="card">
+    <div class="row">
+      <div class="big num" style="margin:0">${ws.length ? ws[ws.length - 1].toFixed(1) : "--.-"}<small>kg</small></div>
+      <div class="legend"><span><i style="background:var(--glow)"></i>시작보다 아래</span><span><i style="background:var(--pink)"></i>위</span></div>
+    </div>
+    <div class="chart-wrap" id="chart"></div>
+  </section>
+  <div class="stats tab-nums">
+    <div class="card"><div class="l">최저</div><div class="v num">${min != null ? min.toFixed(1) : "-"}</div></div>
+    <div class="card"><div class="l">평균</div><div class="v num">${avg != null ? avg.toFixed(1) : "-"}</div></div>
+    <div class="card"><div class="l">기간 변화</div><div class="v num ${chg < 0 ? "down" : chg > 0 ? "up" : ""}">${chg != null ? sign(chg) : "-"}</div></div>
+  </div>
+  <section class="card">
+    <h2>전체 기록</h2>
+    <div class="list">${rows || `<div class="empty">아직 몸무게 기록이 없어요.<br>오른쪽 위 ‘기록’으로 시작해요.</div>`}</div>
+  </section>`;
+}
+
+function drawChart() {
+  const el = document.getElementById("chart"); if (!el) return;
+  const ks = rangeKeys();
+  const W = Math.max(280, el.clientWidth || 320), H = 230, L = 34, Rp = 14, T = 34, B = 26;
+  if (!ks.length) { el.innerHTML = `<div class="empty">이 기간에는 기록이 없어요</div>`; return; }
+  const p = S.profile, ws = ks.map(k => S.days[k].weight);
+  let lo = Math.min(...ws), hi = Math.max(...ws);
+  const near = v => v >= lo - 2 && v <= hi + 2;
+  if (near(p.startWeight)) { lo = Math.min(lo, p.startWeight); hi = Math.max(hi, p.startWeight); }
+  if (near(p.goalWeight)) { lo = Math.min(lo, p.goalWeight); hi = Math.max(hi, p.goalWeight); }
+  const span = Math.max(1, hi - lo); const step = span <= 2 ? 0.5 : span <= 5 ? 1 : span <= 10 ? 2 : 5;
+  lo = Math.floor((lo - span * 0.1) / step) * step; hi = Math.ceil((hi + span * 0.1) / step) * step;
+  const t0 = parseKey(ks[0]).getTime(), t1 = parseKey(ks[ks.length - 1]).getTime();
+  const x = k => ks.length === 1 ? (L + (W - Rp)) / 2 : L + (parseKey(k).getTime() - t0) / (t1 - t0) * (W - L - Rp);
+  const y = v => T + (hi - v) / (hi - lo) * (H - T - B);
+  const base = H - B;
+  let g = `<defs>
+    <filter id="blur" x="-50%" y="-20%" width="200%" height="140%"><feGaussianBlur stdDeviation="4"/></filter>
+    <linearGradient id="gDown" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2cc4cf"/><stop offset=".45" stop-color="#74eaa9"/><stop offset="1" stop-color="#74eaa9" stop-opacity="0"/></linearGradient>
+    <linearGradient id="gUp" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ef9ad3"/><stop offset=".5" stop-color="#a58cf6"/><stop offset="1" stop-color="#a58cf6" stop-opacity="0"/></linearGradient>
+  </defs>`;
+  for (let v = lo; v <= hi + 1e-9; v += step) {
+    g += `<text x="${L - 8}" y="${y(v) + 4}" text-anchor="end" font-size="11" font-family="Outfit, sans-serif" fill="#8c968f">${Number.isInteger(step) ? v : v.toFixed(1)}</text>`;
+  }
+  g += `<line x1="${L}" x2="${W - Rp}" y1="${base}" y2="${base}" stroke="#cdd5d0" stroke-width="1"/>`;
+  // glow capsules: one per record, colored by side of the start weight
+  const gap = ks.length > 1 ? (W - L - Rp) / ks.length : 40;
+  const bw = Math.max(4, Math.min(16, gap * 0.6));
+  ks.forEach((k, i) => {
+    const px = x(k), py = y(ws[i]), top = py - 22, h = Math.max(24, Math.min(78, base - top - 6));
+    g += `<rect x="${(px - bw / 2).toFixed(1)}" y="${top.toFixed(1)}" width="${bw}" height="${h.toFixed(1)}" rx="${bw / 2}" fill="url(#${ws[i] > p.startWeight ? "gUp" : "gDown"})" filter="url(#blur)" opacity=".8"/>`;
+    if (ks.length <= 31) g += `<line x1="${px}" x2="${px}" y1="${py}" y2="${base}" stroke="#cdd5d0" stroke-width="1"/><circle cx="${px}" cy="${base}" r="3" fill="#b9c4be"/>`;
+  });
+  const ref = (v, label, c) => v >= lo && v <= hi ? `<line x1="${L}" x2="${W - Rp}" y1="${y(v)}" y2="${y(v)}" stroke="${c}" stroke-width="1" stroke-dasharray="3 4"/><text x="${W - Rp}" y="${y(v) - 5}" text-anchor="end" font-size="10" font-weight="700" fill="${c}">${label} ${v.toFixed(1)}</text>` : "";
+  g += ref(p.startWeight, "시작", "#56625b") + ref(p.goalWeight, "목표", "#12854a");
+  const pts = ks.map((k, i) => [x(k), y(ws[i])]);
+  if (pts.length > 1) g += `<path d="${pts.map((q, i) => `${i ? "L" : "M"}${q[0].toFixed(1)},${q[1].toFixed(1)}`).join("")}" fill="none" stroke="#0f1a14" stroke-opacity=".55" stroke-width="1.2" stroke-linejoin="round"/>`;
+  if (pts.length <= 40) pts.forEach(q => g += `<circle cx="${q[0]}" cy="${q[1]}" r="2.6" fill="#fff" stroke="#8c968f" stroke-width="1"/>`);
+  const last = pts[pts.length - 1], lv = ws[ws.length - 1];
+  const tx = Math.min(W - Rp - 22, Math.max(L + 22, last[0]));
+  g += `<circle cx="${last[0]}" cy="${last[1]}" r="6" fill="#fff" stroke="#0f1a14" stroke-width="2"/>
+        <text x="${tx}" y="${last[1] - 14}" text-anchor="middle" font-size="13" font-family="Outfit, sans-serif" font-weight="500" fill="#0f1a14">${lv.toFixed(1)}</text>`;
+  const labelKs = ks.length === 1 ? [ks[0]] : [ks[0], ks[ks.length - 1]];
+  labelKs.forEach((k, i) => g += `<text x="${x(k)}" y="${H - 6}" text-anchor="${ks.length === 1 ? "middle" : i ? "end" : "start"}" font-size="11" font-family="Outfit, sans-serif" fill="#8c968f">${fmtShort(k)}</text>`);
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="몸무게 추이 그래프">${g}</svg>`;
+}
+
+function viewMove() {
+  const t = todayKey();
+  const days = Array.from({ length: 7 }, (_, i) => addDays(t, i - 6));
+  const mins = days.map(exMin), max = Math.max(30, ...mins);
+  const weekMin = mins.reduce((a, b) => a + b, 0);
+  const weekKcal = days.reduce((a, k) => a + exKcal(k), 0);
+  const today = (day(t).ex || []).map((e, i) => {
+    const ty = EXERCISES.find(x => x.id === e.type);
+    return `<div class="li"><div class="main"><div class="t">${esc(ty ? ty.n : e.type)}</div><div class="s tab-nums">${e.min}분 · ${e.kcal}kcal</div></div>
+      <button class="btn btn-sm btn-white" data-del-ex="${i}" aria-label="${esc(ty ? ty.n : "")} 기록 지우기">지우기</button></div>`;
+  }).join("");
+  return `
+  <header class="head">
+    <div><h1>운동</h1><div class="sub">일주일에 ${WEEK_GOAL_MIN}분이면 충분해요</div></div>
+    <button class="btn btn-md btn-solid" data-act="ex-add">추가</button>
+  </header>
+  <section class="card">
+    <div class="k">${IC.run}최근 7일</div>
+    <div class="big num">${weekMin}<small>/ ${WEEK_GOAL_MIN}분 · ${weekKcal.toLocaleString()}kcal</small></div>
+    <div class="meter"><i style="width:${Math.min(100, weekMin / WEEK_GOAL_MIN * 100).toFixed(1)}%"></i></div>
+    <div class="bars">${days.map((k, i) => `<div class="bar ${k === t ? "today" : ""}"><div class="col">${mins[i] ? `<i style="height:${(mins[i] / max * 85).toFixed(1)}%"></i><b style="bottom:calc(${(mins[i] / max * 85).toFixed(1)}% + 4px)">${mins[i]}</b>` : `<i class="zero"></i>`}</div><span>${WD[parseKey(k).getDay()]}</span></div>`).join("")}</div>
+  </section>
+  <section class="card">
+    <div class="row"><h2>오늘 한 운동</h2><span class="small muted tab-nums">${exMin(t)}분 · ${exKcal(t)}kcal</span></div>
+    <div class="list">${today || `<div class="empty">아직 기록이 없어요.<br>10분 걷기부터 해 봐요.</div>`}</div>
+  </section>`;
+}
+
+function viewMe() {
+  const p = S.profile, R = rec(), cur = curWeight();
+  const pinPct = b => Math.max(0, Math.min(100, (b - 12) / (35 - 12) * 100));
+  const sexN = p.sex === "m" ? "남성" : "여성";
+  return `
+  <header class="head">
+    <div><h1>하루 권장량</h1><div class="sub tab-nums">${p.height}cm · ${cur.toFixed(1)}kg · ${p.age}세 ${sexN}</div></div>
+    <button class="btn btn-md btn-white" data-act="profile">수정</button>
+  </header>
+  <section class="card glass tile">
+    <div class="k">감량 섭취 칼로리</div>
+    <div class="v num" style="font-size:3rem;font-weight:200">${R.kcal.toLocaleString()}<small>kcal</small></div>
+    <div class="d" style="color:var(--ink)">유지 칼로리 ${R.tdee.toLocaleString()}kcal에서 500kcal 뺀 값이에요</div>
+  </section>
+  <div class="grid2">
+    <div class="card tile"><div class="k">${IC.drop}물</div><div class="v num">${(R.water / 1000).toFixed(2)}<small>L</small></div><div class="d">몸무게 × 33ml · ${Math.ceil(R.water / CUP)}컵</div></div>
+    <div class="card tile"><div class="k">단백질</div><div class="v num">${R.protein}<small>g</small></div><div class="d">몸무게 × 1.2g</div></div>
+    <div class="card tile"><div class="k">기초대사량</div><div class="v num">${R.bmr.toLocaleString()}<small>kcal</small></div><div class="d">가만히 있어도 쓰는 양</div></div>
+    <div class="card tile"><div class="k">목표까지</div><div class="v num">${R.toGoal > 0 ? R.weeks : 0}<small>주</small></div><div class="d">${R.toGoal > 0 ? "주 0.5kg씩 뺄 때" : "목표 달성! 유지 모드"}</div></div>
+  </div>
+  <section class="card">
+    <div class="row"><h2>BMI <span class="num" style="font-weight:400">${R.bmi.toFixed(1)}</span></h2><span class="chip">${R.bmiLabel}</span></div>
+    <div class="bmi-bar"><i class="bmi-pin" style="left:${pinPct(R.bmi)}%"></i></div>
+    <div class="bmi-labels tab-nums">${[18.5, 23, 25].map(v => `<span style="left:${pinPct(v)}%">${v}</span>`).join("")}</div>
+    <p class="small muted" style="margin:8px 0 0">대한비만학회 기준이에요. 섭취는 하루 ${p.sex === "m" ? "1,500" : "1,200"}kcal 아래로 내리지 마세요.</p>
+  </section>
+  <section class="card">
+    <h2>기록 관리</h2>
+    <div class="list">
+      <button class="li" data-act="profile"><div class="main"><div class="t">시작·목표 몸무게 바꾸기</div><div class="s tab-nums">시작 ${p.startWeight.toFixed(1)}kg → 목표 ${p.goalWeight.toFixed(1)}kg</div></div>${IC.chev.replace("<svg", '<svg width="18" height="18"')}</button>
+      <button class="li" data-act="backup"><div class="main"><div class="t">백업 파일 받기</div><div class="s">${esc(backupAgo())}</div></div>${IC.chev.replace("<svg", '<svg width="18" height="18"')}</button>
+      <button class="li" data-act="restore"><div class="main"><div class="t">백업 불러오기</div><div class="s">새 폰이나 기록이 지워졌을 때</div></div>${IC.chev.replace("<svg", '<svg width="18" height="18"')}</button>
+      <button class="li" data-act="reset"><div class="main"><div class="t danger">모든 기록 지우기</div><div class="s">되돌릴 수 없어요</div></div>${IC.chev.replace("<svg", '<svg width="18" height="18"')}</button>
+    </div>
+  </section>`;
+}
+
+/* ───────── sheets ───────── */
+const $sheet = document.getElementById("sheet"), $scrim = document.getElementById("scrim");
+function openSheet(html, bind) {
+  $sheet.innerHTML = `<div class="grab"></div>${html}`;
+  $sheet.hidden = false; $scrim.hidden = false;
+  requestAnimationFrame(() => { $sheet.classList.add("show"); $scrim.classList.add("show"); });
+  bind && bind($sheet);
+}
+function closeSheet() {
+  $sheet.classList.remove("show"); $scrim.classList.remove("show");
+  setTimeout(() => { $sheet.hidden = true; $scrim.hidden = true; $sheet.innerHTML = ""; render(); }, 260);
+}
+$scrim.onclick = closeSheet;
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !$sheet.hidden) closeSheet(); });
+
+function openWeight(k = todayKey()) {
+  const start = typeof day(k).weight === "number" ? day(k).weight : (latestWeight()?.w ?? S.profile.startWeight);
+  openSheet(`
+    <h3>몸무게 기록</h3>
+    <p class="desc">아침에 일어나 화장실 다녀온 뒤가 가장 정확해요.</p>
+    <div class="field"><label for="w-date">날짜</label><input id="w-date" type="date" value="${k}" max="${todayKey()}"></div>
+    <div class="stepper">
+      <button class="step-btn" data-step="-0.1" aria-label="0.1kg 빼기">−</button>
+      <input class="val" id="w-val" inputmode="decimal" value="${start.toFixed(1)}" aria-label="몸무게 kg"><span class="unit">kg</span>
+      <button class="step-btn" data-step="0.1" aria-label="0.1kg 더하기">+</button>
+    </div>
+    <div class="sheet-actions">
+      ${typeof day(k).weight === "number" ? `<button class="btn btn-lg btn-outline" id="w-del">삭제</button>` : ""}
+      <button class="btn btn-lg btn-solid" id="w-save">저장</button>
+    </div>`, s => {
+    const val = s.querySelector("#w-val"), date = s.querySelector("#w-date");
+    s.querySelectorAll("[data-step]").forEach(b => b.onclick = () => {
+      const v = parseFloat(val.value) || start; val.value = Math.max(20, r1(v + Number(b.dataset.step))).toFixed(1);
+    });
+    date.onchange = () => { const d = day(date.value).weight; if (typeof d === "number") val.value = d.toFixed(1); };
+    s.querySelector("#w-save").onclick = () => {
+      const v = parseFloat(String(val.value).replace(",", "."));
+      if (!(v >= 20 && v <= 300)) { toast("20~300kg 사이로 적어 주세요"); return; }
+      patchDay(date.value || k, { weight: r1(v) });
+      const lw = latestWeight(), d = lw.w - S.profile.startWeight, e = equivalent(d);
+      toast(e && d < 0 ? `${e.e} ${e.n} ${fmtCount(e.c)}${e.u}만큼 빠졌어요!` : "기록했어요");
+      closeSheet();
+    };
+    const del = s.querySelector("#w-del");
+    if (del) del.onclick = () => { const d = { ...day(date.value) }; delete d.weight; S.days[date.value] = d; saveDay(date.value); toast("지웠어요"); closeSheet(); };
+  });
+}
+
+function openExercise() {
+  let type = S.exType, min = 30;
+  const draw = () => {
+    const ty = EXERCISES.find(x => x.id === type);
+    const kcal = Math.round(ty.met * curWeight() * min / 60);
+    return `
+    <h3>운동 추가</h3>
+    <p class="desc">소모 칼로리는 운동 강도(MET) × 몸무게 × 시간으로 계산해요.</p>
+    <div class="ex-types" role="group" aria-label="운동 종류">${EXERCISES.map(e => `<button data-type="${e.id}" aria-pressed="${e.id === type}" class="${e.id === type ? "" : "c-plain"}">${e.n}</button>`).join("")}</div>
+    <div class="stepper">
+      <button class="step-btn" data-m="-5" aria-label="5분 빼기">−</button>
+      <input class="val" id="ex-min" inputmode="numeric" value="${min}" aria-label="운동 시간(분)"><span class="unit">분</span>
+      <button class="step-btn" data-m="5" aria-label="5분 더하기">+</button>
+    </div>
+    <p class="desc tab-nums" style="text-align:center;margin-top:-12px">약 <b id="ex-kcal">${kcal}</b>kcal 소모</p>
+    <button class="btn btn-lg btn-solid btn-block" id="ex-save">추가하기</button>`;
+  };
+  const bind = s => {
+    s.querySelectorAll("[data-type]").forEach(b => b.onclick = () => { type = b.dataset.type; S.exType = type; min = parseInt(s.querySelector("#ex-min").value) || min; s.innerHTML = `<div class="grab"></div>${draw()}`; bind(s); });
+    const inp = s.querySelector("#ex-min");
+    const upd = () => { const ty = EXERCISES.find(x => x.id === type); s.querySelector("#ex-kcal").textContent = Math.round(ty.met * curWeight() * (parseInt(inp.value) || 0) / 60); };
+    inp.oninput = () => { min = parseInt(inp.value) || 0; upd(); };
+    s.querySelectorAll("[data-m]").forEach(b => b.onclick = () => { min = Math.max(5, Math.min(600, (parseInt(inp.value) || 0) + Number(b.dataset.m))); inp.value = min; upd(); });
+    s.querySelector("#ex-save").onclick = () => {
+      const m = parseInt(inp.value);
+      if (!(m > 0 && m <= 600)) { toast("1~600분 사이로 적어 주세요"); return; }
+      const ty = EXERCISES.find(x => x.id === type), t = todayKey();
+      patchDay(t, { ex: [...(day(t).ex || []), { type, min: m, kcal: Math.round(ty.met * curWeight() * m / 60) }] });
+      toast(`${ty.n} ${m}분 기록했어요`); closeSheet();
+    };
+  };
+  openSheet(draw(), bind);
+}
+
+function openProfile(isNew) {
+  const p = S.profile || { height: 160, startWeight: 60, goalWeight: 55, age: 30, sex: "f", activity: 1.375 };
+  let sex = p.sex;
+  openSheet(`
+    <h3>${isNew ? "나에 대해 알려 주세요" : "내 정보 수정"}</h3>
+    <p class="desc">권장 칼로리와 물 양을 계산하는 데만 써요.</p>
+    <div class="field-row">
+      <div class="field"><label for="p-h">키 (cm)</label><input id="p-h" inputmode="decimal" value="${p.height}"></div>
+      <div class="field"><label for="p-a">나이</label><input id="p-a" inputmode="numeric" value="${p.age}"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label for="p-s">시작 몸무게 (kg)</label><input id="p-s" inputmode="decimal" value="${p.startWeight}"></div>
+      <div class="field"><label for="p-g">목표 몸무게 (kg)</label><input id="p-g" inputmode="decimal" value="${p.goalWeight}"></div>
+    </div>
+    <div class="field"><label>성별</label><div class="seg-sex" role="group">
+      <button data-sex="f" aria-pressed="${sex === "f"}">여성</button><button data-sex="m" aria-pressed="${sex === "m"}">남성</button></div></div>
+    <div class="field"><label for="p-act">평소 활동량</label><select id="p-act">${ACTIVITY.map(a => `<option value="${a.v}" ${a.v === p.activity ? "selected" : ""}>${a.n}</option>`).join("")}</select></div>
+    <button class="btn btn-lg btn-solid btn-block" id="p-save">${isNew ? "시작하기" : "저장"}</button>`, s => {
+    s.querySelectorAll("[data-sex]").forEach(b => b.onclick = () => { sex = b.dataset.sex; s.querySelectorAll("[data-sex]").forEach(x => x.setAttribute("aria-pressed", String(x === b))); });
+    s.querySelector("#p-save").onclick = () => {
+      const n = id => parseFloat(String(s.querySelector(id).value).replace(",", "."));
+      const np = { height: n("#p-h"), age: Math.round(n("#p-a")), startWeight: r1(n("#p-s")), goalWeight: r1(n("#p-g")), sex, activity: parseFloat(s.querySelector("#p-act").value), startDate: p.startDate || todayKey() };
+      if (!(np.height >= 100 && np.height <= 230)) return toast("키를 100~230cm로 적어 주세요");
+      if (!(np.age >= 10 && np.age <= 100)) return toast("나이를 확인해 주세요");
+      if (!(np.startWeight >= 20 && np.startWeight <= 300 && np.goalWeight >= 20 && np.goalWeight <= 300)) return toast("몸무게를 20~300kg로 적어 주세요");
+      S.profile = np; saveProfile();
+      if (isNew && typeof day(todayKey()).weight !== "number") patchDay(todayKey(), { weight: np.startWeight });
+      toast(isNew ? "시작! 오늘이 1일째예요" : "저장했어요");
+      closeSheet();
+    };
+  });
+}
+
+/* ───────── backup ───────── */
+const LB_KEY = "gram-diary.lastBackup";
+function backupAgo() {
+  let v = null; try { v = localStorage.getItem(LB_KEY); } catch (e) {}
+  if (!v) return "이 폰에서는 아직 안 받았어요";
+  const n = Math.round((parseKey(todayKey()) - parseKey(v)) / 864e5);
+  return n <= 0 ? "오늘 받았어요" : `마지막 백업 ${n}일 전`;
+}
+function markBackup() { try { localStorage.setItem(LB_KEY, todayKey()); } catch (e) {} }
+function backupText() {
+  return JSON.stringify({ app: "gram-diary", v: 1, exportedAt: new Date().toISOString(), profile: S.profile, days: S.days });
+}
+let dlP = null;
+async function exportBackup() {
+  const text = backupText(), name = `그램다이어리-백업-${todayKey()}.json`;
+  if (!dlP && window.claude?.use) dlP = claude.use("downloads");
+  const dl = dlP ? await dlP : null;
+  if (dl) {
+    try { await dl.save({ filename: name, data: text }); markBackup(); toast("백업 파일을 저장했어요"); render(); return; }
+    catch (e) { if (e && e.code === "declined") return; }
+  }
+  if (!window.claude) { // standalone web app: iOS share sheet → "파일에 저장"
+    try {
+      const file = new File([text], name, { type: "application/json" });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file] }); markBackup(); toast("백업을 보냈어요"); render(); return;
+      }
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      markBackup(); toast("백업 파일을 저장했어요"); render(); return;
+    } catch (e) { if (e && e.name === "AbortError") return; }
+  }
+  openSheet(`
+    <h3>백업 내용 복사</h3>
+    <p class="desc">파일로 저장할 수 없는 화면이에요. 아래 내용을 복사해서 메모 앱에 붙여 두세요. 불러올 때 그대로 붙여넣으면 돼요.</p>
+    <div class="field"><label for="bk-text">백업 내용</label><textarea id="bk-text" readonly>${esc(text)}</textarea></div>
+    <button class="btn btn-lg btn-solid btn-block" id="bk-copy">복사하기</button>`, s => {
+    const ta = s.querySelector("#bk-text");
+    s.querySelector("#bk-copy").onclick = async () => {
+      try { await navigator.clipboard.writeText(text); markBackup(); toast("복사했어요. 메모 앱에 붙여 두세요"); closeSheet(); }
+      catch (e) { ta.focus(); ta.select(); toast("길게 눌러 전체 선택 후 복사해 주세요"); }
+    };
+  });
+}
+function parseBackup(raw) {
+  let o; try { o = JSON.parse(String(raw).trim()); } catch (e) { return null; }
+  if (!o || o.app !== "gram-diary" || typeof o.days !== "object" || !o.days) return null;
+  const days = {};
+  for (const [k, d] of Object.entries(o.days)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || !d || typeof d !== "object") continue;
+    const x = {};
+    if (typeof d.weight === "number" && d.weight >= 20 && d.weight <= 300) x.weight = d.weight;
+    if (typeof d.water === "number" && d.water >= 0) x.water = d.water;
+    if (typeof d.resist === "number" && d.resist >= 0) x.resist = d.resist;
+    if (Array.isArray(d.ex)) x.ex = d.ex.filter(e => e && typeof e.min === "number" && typeof e.kcal === "number").map(e => ({ type: String(e.type), min: e.min, kcal: e.kcal }));
+    days[k] = x;
+  }
+  const p = o.profile;
+  const profile = p && typeof p.height === "number" && typeof p.startWeight === "number" && typeof p.goalWeight === "number" ? p : null;
+  return { profile, days };
+}
+function openRestore() {
+  let parsed = null;
+  openSheet(`
+    <h3>백업 불러오기</h3>
+    <p class="desc">같은 날짜의 기록은 백업 내용으로 바뀌고, 백업에 없는 날짜는 그대로 남아요.</p>
+    <button class="btn btn-lg btn-white btn-block file-btn" type="button">백업 파일 고르기<input id="rs-file" type="file" accept=".json,.txt,application/json,text/plain" aria-label="백업 파일 고르기"></button>
+    <div class="field" style="margin-top:16px"><label for="rs-text">또는 복사해 둔 내용 붙여넣기</label><textarea id="rs-text" placeholder='{"app":"gram-diary", ...'></textarea></div>
+    <p class="desc" id="rs-info" style="margin:-4px 0 16px">파일을 고르거나 내용을 붙여넣어 주세요.</p>
+    <button class="btn btn-lg btn-solid btn-block" id="rs-go" disabled style="opacity:.4">불러오기</button>`, s => {
+    const info = s.querySelector("#rs-info"), go = s.querySelector("#rs-go"), ta = s.querySelector("#rs-text");
+    const check = raw => {
+      parsed = parseBackup(raw);
+      const n = parsed ? Object.keys(parsed.days).length : 0;
+      info.textContent = parsed ? `${n}일치 기록을 찾았어요${parsed.profile ? " · 내 정보 포함" : ""}` : (String(raw).trim() ? "그램 다이어리 백업이 아니에요. 내용을 다시 확인해 주세요." : "파일을 고르거나 내용을 붙여넣어 주세요.");
+      go.disabled = !parsed; go.style.opacity = parsed ? "1" : ".4";
+    };
+    ta.oninput = () => check(ta.value);
+    s.querySelector("#rs-file").onchange = e => {
+      const f = e.target.files && e.target.files[0]; if (!f) return;
+      const r = new FileReader(); r.onload = () => { ta.value = r.result; check(r.result); }; r.readAsText(f);
+    };
+    go.onclick = () => {
+      if (!parsed) return;
+      if (parsed.profile) { S.profile = parsed.profile; saveProfile(); }
+      if (!S.profile) { toast("내 정보가 없는 백업이에요. 먼저 시작하기를 해 주세요"); return; }
+      for (const [k, d] of Object.entries(parsed.days)) { S.days[k] = d; saveDay(k); }
+      toast(`${Object.keys(parsed.days).length}일치 기록을 불러왔어요`);
+      closeSheet();
+    };
+  });
+}
+
+function openReset() {
+  openSheet(`
+    <h3>모든 기록을 지울까요?</h3>
+    <p class="desc">몸무게, 물, 운동, 내 정보가 전부 사라지고 되돌릴 수 없어요.</p>
+    <div class="sheet-actions"><button class="btn btn-lg btn-outline" id="r-no">취소</button><button class="btn btn-lg btn-ink" id="r-yes">전부 지우기</button></div>`, s => {
+    s.querySelector("#r-no").onclick = closeSheet;
+    s.querySelector("#r-yes").onclick = () => {
+      Object.keys(S.days).forEach(k => { delete S.days[k]; queueWrite("d-" + k, null); });
+      S.profile = null; queueWrite("profile", null); S.tab = "home";
+      toast("지웠어요"); closeSheet();
+    };
+  });
+}
+
+/* ───────── events ───────── */
+let toastT;
+function toast(t) { const el = document.getElementById("toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("show"), 2000); }
+
+function openQuick() {
+  openSheet(`
+    <h3>무엇을 기록할까요?</h3>
+    <p class="desc">${fmtLong(todayKey())}</p>
+    <div class="quick">
+      <button data-q="weight"><span class="ic">${IC.scale}</span><span>몸무게<small>아침 공복이 가장 정확해요</small></span></button>
+      <button data-q="water"><span class="ic">${IC.drop}</span><span>물 한 컵<small>${CUP}ml 더하기</small></span></button>
+      <button data-q="ex"><span class="ic">${IC.run}</span><span>운동<small>종류와 시간만 고르면 돼요</small></span></button>
+    </div>`, s => {
+    s.querySelector('[data-q="weight"]').onclick = () => swapSheet(openWeight);
+    s.querySelector('[data-q="ex"]').onclick = () => swapSheet(openExercise);
+    s.querySelector('[data-q="water"]').onclick = () => { const t = todayKey(); patchDay(t, { water: (day(t).water || 0) + CUP }); toast(`물 ${((day(t).water) / 1000).toFixed(2)}L 마셨어요`); closeSheet(); };
+  });
+}
+function swapSheet(fn) { $sheet.classList.remove("show"); setTimeout(fn, 200); }
+document.getElementById("fab").onclick = openQuick;
+
+document.getElementById("tabbar").addEventListener("click", e => {
+  const b = e.target.closest("[data-tab]"); if (!b) return;
+  S.tab = b.dataset.tab; render(); window.scrollTo(0, 0);
+});
+
+$app.addEventListener("click", e => {
+  const t = todayKey();
+  const a = e.target.closest("[data-act]");
+  if (a) {
+    const act = a.dataset.act, R = S.profile ? rec() : null;
+    if (act === "weight") return openWeight();
+    if (act === "ex-add") return openExercise();
+    if (act === "profile") return openProfile(false);
+    if (act === "reset") return openReset();
+    if (act === "backup") return exportBackup();
+    if (act === "restore") return openRestore();
+    if (act === "water+") { patchDay(t, { water: (day(t).water || 0) + CUP }); if ((day(t).water) === Math.ceil(R.water / CUP) * CUP) toast("물 목표 달성! 💧"); return render(); }
+    if (act === "water-") { patchDay(t, { water: Math.max(0, (day(t).water || 0) - CUP) }); return render(); }
+    if (act === "resist") {
+      const n = (day(t).resist || 0) + 1; patchDay(t, { resist: n });
+      toast(["잘 참았어요!", "오, 또 참았네요", "이거 쉬운 거 아닌데요", `오늘만 ${n}번째예요, 대단해요`][(n - 1) % 4]);
+      S._popResist = true; render(); S._popResist = false; return;
+    }
+    if (act === "cheer") { S.cheerIdx++; return render(); }
+  }
+  const cup = e.target.closest("[data-cup]");
+  if (cup) { const i = Number(cup.dataset.cup), cur = Math.floor((day(t).water || 0) / CUP); patchDay(t, { water: (i + 1 === cur ? i : i + 1) * CUP }); return render(); }
+  const r = e.target.closest("[data-range]"); if (r) { S.range = r.dataset.range; return render(); }
+  const ed = e.target.closest("[data-edit]"); if (ed) return openWeight(ed.dataset.edit);
+  const dx = e.target.closest("[data-del-ex]");
+  if (dx) { const ex = [...(day(t).ex || [])]; ex.splice(Number(dx.dataset.delEx), 1); patchDay(t, { ex }); toast("지웠어요"); return render(); }
+});
+
+let rz; window.addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(() => S.tab === "chart" && drawChart(), 150); });
+document.addEventListener("visibilitychange", () => { if (!document.hidden && $sheet.hidden) render(); }); // day rollover
+
+/* ───────── boot ───────── */
+lsLoad();
+render();
+connect();
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+</script>
+</body>
+</html>
