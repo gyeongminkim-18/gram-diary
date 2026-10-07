@@ -1,5 +1,5 @@
 // 오프라인 지원: 앱 파일은 캐시 우선, 웹폰트는 받아 둔 걸 쓰면서 뒤에서 갱신.
-const CACHE = "gram-f476808a57";
+const CACHE = "gram-d8c7da6759";
 const SHELL = ["./", "index.html", "manifest.webmanifest", "icons/icon-192.png", "icons/icon-512.png", "icons/apple-touch-icon.png"];
 
 self.addEventListener("install", e => {
