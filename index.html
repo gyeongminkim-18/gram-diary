@@ -351,8 +351,8 @@ input, select { font: inherit; letter-spacing: inherit; color: var(--ink); }
 const FOODS = [ // grams per unit, ascending
   { g: 15,    e: "🍅", n: "방울토마토", u: "개" },
   { g: 60,    e: "🥚", n: "달걀",       u: "개" },
-  { g: 120,   e: "🍌", n: "바나나",     u: "개" },
-  { g: 250,   e: "🍎", n: "사과",       u: "개" },
+  { g: 180,   e: "🍌", n: "바나나",     u: "개" },  // 껍질 포함 중간 크기
+  { g: 300,   e: "🍎", n: "사과",       u: "개" },  // 중과 한 알
   { g: 500,   e: "🧃", n: "생수 500ml", u: "병" },
   { g: 1000,  e: "🥛", n: "우유 1L",    u: "팩" },
   { g: 1500,  e: "🍍", n: "파인애플",   u: "개" },
@@ -428,10 +428,12 @@ function equivalent(kg) {
   if (g < 10) return null;
   // smallest food that fits in ≤ 5 pieces: "사과 3개" reads better than "우유 1팩"
   const f = FOODS.find(x => g / x.g <= 5.25) || FOODS[FOODS.length - 1];
-  let c = g / f.g;
-  c = c < 1.25 ? 1 : Math.round(c * 2) / 2;
-  return { ...f, c };
+  // round DOWN to the half so the count never overstates the loss; say "조금 넘게" for the rest
+  const raw = g / f.g;
+  const c = Math.max(1, Math.floor(raw * 2) / 2);
+  return { ...f, c, more: raw - c >= 0.15, less: raw < c - 0.1 };
 }
+const equivPhrase = e => `${e.n} ${fmtCount(e.c)}${e.u}${e.more ? " 조금 넘게" : e.less ? "에 가깝게" : "만큼"}`;
 
 function streak() {
   let k = todayKey(), n = 0;
@@ -451,7 +453,7 @@ function cheers() {
   if (lw) {
     const d = lw.w - p.startWeight;
     const e = equivalent(d);
-    if (d < 0 && e) out.push(`처음 잰 날보다 ${e.n} ${fmtCount(e.c)}${e.u}만큼 빠졌어요. 잘하고 있어요!`);
+    if (d < 0 && e) out.push(`처음 잰 날보다 ${equivPhrase(e)} 빠졌어요. 잘하고 있어요!`);
     if (d >= 0) out.push("몸무게는 하루에도 1~2kg씩 왔다 갔다 해요. 그래프로 일주일을 보면 덜 흔들려요.");
     const pr = prevWeightBefore(lw.k);
     if (pr != null && lw.w < pr) out.push("지난번보다 줄었네요! 어제 먹은 거 기억해 뒀다가 오늘도 그렇게 해 봐요.");
@@ -649,7 +651,7 @@ function viewHome() {
   let equivText, fruits = "";
   if (!lw || !e) equivText = lw ? "시작이랑 거의 같아요" : "첫 몸무게를 남겨 볼까요?";
   else {
-    equivText = `${e.n} ${fmtCount(e.c)}${e.u}만큼 ${delta < 0 ? "빠졌어요" : "쪘어요"}`;
+    equivText = `${equivPhrase(e)} ${delta < 0 ? "빠졌어요" : "쪘어요"}`;
     const full = Math.min(8, Math.floor(e.c)), half = e.c % 1 && full < 8;
     fruits = Array.from({ length: full }, () => `<span>${e.e}</span>`).join("") + (half ? `<span class="half">${e.e}</span>` : "");
   }
@@ -936,7 +938,7 @@ function openWeight(k = todayKey()) {
       if (!(v >= 20 && v <= 300)) { toast("20~300kg 사이로 적어 주세요"); return; }
       patchDay(date.value || k, { weight: r1(v) });
       const lw = latestWeight(), d = lw.w - S.profile.startWeight, e = equivalent(d);
-      toast(e && d < 0 ? `${e.e} ${e.n} ${fmtCount(e.c)}${e.u}만큼 빠졌어요!` : "기록했어요");
+      toast(e && d < 0 ? `${e.e} ${equivPhrase(e)} 빠졌어요!` : "기록했어요");
       closeSheet();
     };
     const del = s.querySelector("#w-del");
