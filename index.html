@@ -199,6 +199,20 @@ input, select { font: inherit; letter-spacing: inherit; color: var(--ink); }
 .li .s { font-size: var(--t3); color: var(--ink-muted); }
 .li .r { text-align: right; }
 .li .r .num { font-size: var(--t7); font-weight: 400; }
+.field textarea.plain { font: 500 var(--t4)/1.5 inherit; font-family: inherit; min-height: 88px; }
+.photo-pick { display: flex; align-items: center; gap: var(--x3); margin-bottom: var(--x3); padding: var(--x2) var(--x3); border-radius: 14px; box-shadow: inset 0 0 0 1px var(--line); font-weight: 700; font-size: var(--t3); color: var(--ink-muted); cursor: pointer; }
+.photo-pick img { width: 56px; height: 56px; object-fit: cover; border-radius: 10px; }
+.foods { margin: var(--x4) 0 var(--x2); }
+.foods summary { font-size: var(--t3); font-weight: 700; color: var(--ink-muted); cursor: pointer; padding-block: var(--x2); }
+.food-chips { display: flex; flex-wrap: wrap; gap: 6px; padding-top: var(--x2); }
+.food-chips button { height: 34px; padding-inline: 12px; border-radius: var(--r-pill); background: #f1f5f3; font-size: var(--t3); font-weight: 600; display: inline-flex; gap: 4px; align-items: center; }
+.food-chips small { color: var(--ink-subtle); font-weight: 500; }
+.meal-items .li { min-height: 52px; gap: var(--x2); }
+.meal-items .mini { background: #f1f5f3; }
+.meal-items .mini.on { background: var(--ink); }
+.meal-items .kc { width: 64px; height: 36px; border-radius: 10px; border: 0; box-shadow: inset 0 0 0 1px var(--line); background: #f5f8f6; text-align: right; padding-inline: 8px; font-weight: 600; font-size: var(--t4); }
+.meal-items .add-n { flex: 1; min-width: 0; height: 36px; border-radius: 10px; border: 0; box-shadow: inset 0 0 0 1px var(--line); background: #f5f8f6; padding-inline: 10px; font-size: var(--t4); }
+.btn[disabled] { opacity: .4; pointer-events: none; }
 .empty { padding: var(--x6) var(--x2); text-align: center; color: var(--ink-muted); font-size: var(--t4); }
 
 /* glow bars (exercise) */
@@ -378,6 +392,17 @@ const ACTIVITY = [
   { v: 1.55,  n: "주 3~5회 운동" },
   { v: 1.725, n: "거의 매일 운동" },
 ];
+const MEAL_SLOTS = ["아침", "점심", "저녁", "간식"];
+const FOOD_KCAL = [ // 1인분 기준 대략값 (식약처 식품영양성분 DB 근사)
+  ["공기밥", "1공기", 300], ["현미밥", "1공기", 290], ["김밥", "1줄", 450], ["라면", "1봉", 500],
+  ["김치찌개", "1그릇", 250], ["된장찌개", "1그릇", 180], ["비빔밥", "1그릇", 600], ["제육볶음", "1인분", 450],
+  ["삼겹살", "1인분(200g)", 660], ["닭가슴살", "100g", 110], ["치킨", "2조각", 500], ["짜장면", "1그릇", 800],
+  ["떡볶이", "1인분", 480], ["샐러드", "1접시", 150], ["샌드위치", "1개", 350], ["토스트", "1개", 300],
+  ["삶은 달걀", "1개", 75], ["바나나", "1개", 90], ["사과", "1개", 150], ["고구마", "1개", 200],
+  ["우유", "1컵", 130], ["두유", "1팩", 130], ["그릭요거트", "1개", 100], ["아메리카노", "1잔", 10],
+  ["카페라떼", "1잔", 180], ["콜라", "1캔", 140], ["맥주", "500ml", 230], ["소주", "1병", 400],
+  ["과자", "1봉", 450], ["아이스크림", "1개", 250],
+];
 const CUP = 250;
 const WEEK_GOAL_MIN = 150; // WHO 권장 중강도 주 150분
 
@@ -441,7 +466,8 @@ function streak() {
   while (hasLog(k)) { n++; k = addDays(k, -1); }
   return n;
 }
-const hasLog = k => { const d = S.days[k]; return !!d && (typeof d.weight === "number" || (d.water || 0) > 0 || (d.ex || []).length > 0); };
+const hasLog = k => { const d = S.days[k]; return !!d && (typeof d.weight === "number" || (d.water || 0) > 0 || (d.ex || []).length > 0 || (d.meals || []).length > 0); };
+const mealKcal = k => (day(k).meals || []).reduce((s, m) => s + (m.kcal || 0), 0);
 
 const exMin = k => (day(k).ex || []).reduce((s, e) => s + e.min, 0);
 const exKcal = k => (day(k).ex || []).reduce((s, e) => s + e.kcal, 0);
@@ -498,7 +524,7 @@ async function flush(id, body) {
 }
 function saveDay(k) {
   const d = S.days[k];
-  const empty = !d || (typeof d.weight !== "number" && !(d.water > 0) && !(d.ex || []).length && !(d.resist > 0));
+  const empty = !d || (typeof d.weight !== "number" && !(d.water > 0) && !(d.ex || []).length && !(d.meals || []).length && !(d.resist > 0));
   if (empty) delete S.days[k];
   queueWrite("d-" + k, empty ? null : { ...S.days[k], date: k });
 }
@@ -558,6 +584,7 @@ const IC = {
   hand: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10z"/></svg>`,
   spark: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z"/></svg>`,
   cal: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16"/></svg>`,
+  bowl: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 11h17a8.5 8.5 0 0 1-17 0z"/><path d="M9 21h6M8 7.5c0-1.5 1.5-1.5 1.5-3M12.5 7.5c0-1.5 1.5-1.5 1.5-3"/></svg>`,
   chev: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>`,
 };
 const dropSvg = on => `<svg viewBox="0 0 18 22"><path d="M9 1.5s7 7.3 7 12a7 7 0 0 1-14 0c0-4.7 7-12 7-12z" fill="${on ? "url(#dg)" : "none"}" stroke="${on ? "none" : "#b9c4be"}" stroke-width="1.5"/></svg>`;
@@ -712,6 +739,8 @@ function viewHome() {
     </section>
   </div>
 
+  ${mealCard(t, R)}
+
   <section class="card">
     <div class="row"><div class="k">${IC.run}운동</div><button class="btn btn-sm btn-white" data-act="ex-add">추가</button></div>
     <div class="row" style="align-items:flex-end">
@@ -740,6 +769,20 @@ function viewHome() {
       <div class="week">${week}</div>
     </section>
   </div>`;
+}
+
+function mealCard(t, R) {
+  const eaten = mealKcal(t), burn = exKcal(t), left = R.kcal + burn - eaten;
+  const meals = day(t).meals || [];
+  const rows = meals.map((m, i) => `<div class="li"><div class="main"><div class="t">${esc(m.slot)} <span class="num" style="font-weight:400">${m.kcal}kcal</span></div><div class="s">${esc(m.items.map(x => x.n + (x.amt ? " " + x.amt : "")).join(", "))}</div></div>
+    <button class="btn btn-sm btn-white" data-del-meal="${i}" aria-label="${esc(m.slot)} 기록 지우기">지우기</button></div>`).join("");
+  return `<section class="card">
+    <div class="row"><div class="k">${IC.bowl}먹은 것</div><button class="btn btn-sm btn-white" data-act="meal-add">추가</button></div>
+    <div class="big num">${eaten.toLocaleString()}<small>/ ${R.kcal.toLocaleString()}kcal</small></div>
+    <div class="meter" role="img" aria-label="섭취 ${eaten}kcal / 권장 ${R.kcal}kcal"><i style="width:${Math.min(100, eaten / R.kcal * 100).toFixed(1)}%;${eaten > R.kcal + burn ? "background:var(--pink)" : ""}"></i></div>
+    <div class="meta"><span>${left >= 0 ? `<b>${left.toLocaleString()}kcal</b> 더 먹어도 돼요` : `<b>${(-left).toLocaleString()}kcal</b> 넘었어요`}</span><span style="text-align:right">${burn ? `운동 +${burn}` : ""}</span></div>
+    ${rows ? `<div class="list" style="margin-top:8px">${rows}</div>` : ""}
+  </section>`;
 }
 
 function rangeKeys() {
@@ -980,6 +1023,88 @@ function openExercise() {
   openSheet(draw(), bind);
 }
 
+let samplePromise = null;
+const getSample = () => (samplePromise ||= (window.claude?.use ? claude.use("sample").catch(() => null) : Promise.resolve(null)));
+let aiOff = false; // not_granted 등: 이번 보기에선 숨김
+
+function openMeal() {
+  const h = new Date().getHours();
+  let slot = h < 10 ? "아침" : h < 15 ? "점심" : h < 21 ? "저녁" : "간식";
+  let items = [], photo = null, ctl = null, ai = null, imgOk = false;
+  const total = () => items.reduce((s, x) => s + (Number(x.kcal) || 0), 0);
+  const draw = s => {
+    s.innerHTML = `<div class="grab"></div>
+    <h3>먹은 것 기록</h3>
+    <p class="desc">${ai && !aiOff ? "먹은 걸 적거나 사진을 올리면 칼로리를 계산해 드려요." : "자주 먹는 음식을 누르거나 직접 적어 주세요."}</p>
+    <div class="ex-types" role="group" aria-label="끼니">${MEAL_SLOTS.map(n => `<button data-slot="${n}" aria-pressed="${n === slot}" class="${n === slot ? "" : "c-plain"}">${n}</button>`).join("")}</div>
+    ${ai && !aiOff ? `<div class="field"><label for="m-text">뭐 먹었어요?</label><textarea id="m-text" class="plain" placeholder="예) 김치찌개 한 그릇, 밥 반 공기, 계란말이 3조각">${esc(s._txt || "")}</textarea></div>
+    ${imgOk ? `<label class="photo-pick"><input type="file" accept="image/*" id="m-photo" hidden>${photo ? `<img src="${URL.createObjectURL(photo)}" alt="올린 음식 사진">` : ""}<span>${photo ? "사진 바꾸기" : "📷 사진으로 올리기"}</span></label>` : ""}
+    <button class="btn btn-lg btn-green btn-block" id="m-ai">${ctl ? "계산 중… (멈추기)" : "칼로리 계산하기"}</button>` : ""}
+    <details class="foods" ${ai && !aiOff ? "" : "open"}><summary>자주 먹는 음식에서 고르기</summary>
+      <div class="food-chips">${FOOD_KCAL.map(([n, a, k], i) => `<button data-food="${i}">${n}<small>${k}</small></button>`).join("")}</div></details>
+    <div class="list meal-items">${items.map((x, i) => `<div class="li"><div class="main"><div class="t">${esc(x.n)}</div><div class="s">${esc(x.amt || "")}</div></div>
+      <input class="kc" data-kc="${i}" inputmode="numeric" value="${x.kcal}" aria-label="${esc(x.n)} 칼로리"><span class="small muted">kcal</span>
+      <button class="mini" data-rm="${i}" aria-label="${esc(x.n)} 빼기">−</button></div>`).join("")}
+      <div class="li"><input class="add-n" id="m-n" placeholder="직접 추가 (음식 이름)" aria-label="음식 이름"><input class="kc" id="m-k" inputmode="numeric" placeholder="0" aria-label="칼로리"><span class="small muted">kcal</span><button class="mini on" id="m-add" aria-label="추가">+</button></div>
+    </div>
+    <p class="desc tab-nums" style="text-align:center">합계 <b>${total().toLocaleString()}</b>kcal${items.some(x => x.ai) ? " · AI 추정값이라 고쳐도 돼요" : ""}</p>
+    <button class="btn btn-lg btn-solid btn-block" id="m-save" ${items.length ? "" : "disabled"}>저장</button>`;
+    bind(s);
+  };
+  const keepText = s => { const ta = s.querySelector("#m-text"); if (ta) s._txt = ta.value; };
+  const bind = s => {
+    s.querySelectorAll("[data-slot]").forEach(b => b.onclick = () => { keepText(s); slot = b.dataset.slot; draw(s); });
+    s.querySelectorAll("[data-food]").forEach(b => b.onclick = () => { keepText(s); const [n, a, k] = FOOD_KCAL[Number(b.dataset.food)]; items.push({ n, amt: a, kcal: k }); draw(s); });
+    s.querySelectorAll("[data-kc]").forEach(inp => inp.oninput = () => { items[Number(inp.dataset.kc)].kcal = Math.max(0, parseInt(inp.value) || 0); s.querySelector(".desc.tab-nums b").textContent = total().toLocaleString(); });
+    s.querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { keepText(s); items.splice(Number(b.dataset.rm), 1); draw(s); });
+    s.querySelector("#m-add").onclick = () => {
+      const n = s.querySelector("#m-n").value.trim(), k = parseInt(s.querySelector("#m-k").value);
+      if (!n) { toast("음식 이름을 적어 주세요"); return; }
+      keepText(s); items.push({ n, amt: "", kcal: k > 0 ? k : 0 }); draw(s);
+    };
+    const ph = s.querySelector("#m-photo");
+    if (ph) ph.onchange = () => { if (ph.files[0]) { keepText(s); photo = ph.files[0]; draw(s); } };
+    const go = s.querySelector("#m-ai");
+    if (go) go.onclick = async () => {
+      if (ctl) { ctl.abort(); return; }
+      keepText(s);
+      const txt = (s._txt || "").trim();
+      if (!txt && !photo) { toast("먹은 걸 적거나 사진을 올려 주세요"); return; }
+      ctl = new AbortController(); draw(s);
+      try {
+        const res = await ai.json(
+          `너는 한국 음식 칼로리 계산기야. 사용자가 ${slot}에 먹은 것${photo ? "(첨부 사진 포함)" : ""}을 음식별로 나눠 1회 섭취량 기준 칼로리를 추정해.\n` +
+          `양이 안 적혀 있으면 한국 일반 1인분으로 가정해. 음식이 아닌 건 빼.\n` +
+          `JSON 배열만 답해: [{"n":"음식 이름","amt":"추정 양(예: 1그릇, 200g)","kcal":정수}]\n\n먹은 것: ${txt || "(사진 참고)"}`,
+          { signal: ctl.signal, modelTier: "quick", ...(photo ? { images: [photo] } : {}) });
+        const got = (Array.isArray(res) ? res : []).filter(x => x && x.n).map(x => ({ n: String(x.n).slice(0, 40), amt: String(x.amt || "").slice(0, 30), kcal: Math.max(0, Math.round(Number(x.kcal) || 0)), ai: true }));
+        if (!got.length) toast("음식을 못 찾았어요. 조금 더 자세히 적어 볼까요?");
+        items.push(...got);
+      } catch (e) {
+        const c = e && e.code;
+        if (c === "cancelled") {}
+        else if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"].includes(c)) { aiOff = true; toast("자동 계산을 쓸 수 없어요. 목록에서 골라 주세요"); }
+        else if (c === "images_unavailable" || c === "image_rejected") { photo = null; toast("사진은 못 읽었어요. 글로 적어 주세요"); }
+        else if (c === "rate_limited") toast("잠시 뒤에 다시 해 주세요");
+        else toast("계산을 못 했어요. 다시 눌러 주세요");
+      } finally { ctl = null; if (!$sheet.hidden) draw(s); }
+    };
+    s.querySelector("#m-save").onclick = () => {
+      if (!items.length) return;
+      const t = todayKey(), clean = items.map(({ n, amt, kcal }) => ({ n, amt, kcal: Number(kcal) || 0 }));
+      patchDay(t, { meals: [...(day(t).meals || []), { slot, items: clean, kcal: total() }] });
+      toast(`${slot} ${total().toLocaleString()}kcal 기록했어요`); if (ctl) ctl.abort(); closeSheet();
+    };
+  };
+  openSheet("", s => { draw(s); });
+  getSample().then(async f => {
+    if (!f || aiOff) return;
+    ai = f;
+    try { imgOk = !!(await f.limits())?.images; } catch (e) {}
+    if (!$sheet.hidden && $sheet.querySelector("#m-save")) draw($sheet);
+  });
+}
+
 function openProfile(isNew) {
   const p = S.profile || { height: 160, startWeight: 60, goalWeight: 55, age: 30, sex: "f", activity: 1.375 };
   let sex = p.sex;
@@ -1132,9 +1257,11 @@ function openQuick() {
     <div class="quick">
       <button data-q="weight"><span class="ic">${IC.scale}</span><span>몸무게<small>아침 공복이 가장 정확해요</small></span></button>
       <button data-q="water"><span class="ic">${IC.drop}</span><span>물 한 컵<small>${CUP}ml 더하기</small></span></button>
+      <button data-q="meal"><span class="ic">${IC.bowl}</span><span>먹은 것<small>적거나 사진 올리면 칼로리 계산</small></span></button>
       <button data-q="ex"><span class="ic">${IC.run}</span><span>운동<small>종류와 시간만 고르면 돼요</small></span></button>
     </div>`, s => {
     s.querySelector('[data-q="weight"]').onclick = () => swapSheet(openWeight);
+    s.querySelector('[data-q="meal"]').onclick = () => swapSheet(openMeal);
     s.querySelector('[data-q="ex"]').onclick = () => swapSheet(openExercise);
     s.querySelector('[data-q="water"]').onclick = () => { const t = todayKey(); patchDay(t, { water: (day(t).water || 0) + CUP }); toast(`물 ${((day(t).water) / 1000).toFixed(2)}L 마셨어요`); closeSheet(); };
   });
@@ -1154,6 +1281,7 @@ $app.addEventListener("click", e => {
     const act = a.dataset.act, R = S.profile ? rec() : null;
     if (act === "weight") return openWeight();
     if (act === "ex-add") return openExercise();
+    if (act === "meal-add") return openMeal();
     if (act === "profile") return openProfile(false);
     if (act === "reset") return openReset();
     if (act === "backup") return exportBackup();
@@ -1171,6 +1299,8 @@ $app.addEventListener("click", e => {
   if (cup) { const i = Number(cup.dataset.cup), cur = Math.floor((day(t).water || 0) / CUP); patchDay(t, { water: (i + 1 === cur ? i : i + 1) * CUP }); return render(); }
   const r = e.target.closest("[data-range]"); if (r) { S.range = r.dataset.range; return render(); }
   const ed = e.target.closest("[data-edit]"); if (ed) return openWeight(ed.dataset.edit);
+  const dm = e.target.closest("[data-del-meal]");
+  if (dm) { const ms = [...(day(t).meals || [])]; ms.splice(Number(dm.dataset.delMeal), 1); patchDay(t, { meals: ms }); toast("지웠어요"); return render(); }
   const dx = e.target.closest("[data-del-ex]");
   if (dx) { const ex = [...(day(t).ex || [])]; ex.splice(Number(dx.dataset.delEx), 1); patchDay(t, { ex }); toast("지웠어요"); return render(); }
 });
