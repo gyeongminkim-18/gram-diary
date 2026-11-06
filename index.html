@@ -1152,9 +1152,9 @@ function openGemini() {
       <button class="btn btn-lg btn-solid" id="g-save">저장</button>
     </div>`, s => {
     s.querySelector("#g-save").onclick = () => {
-      const v = s.querySelector("#g-key").value.trim();
+      const v = s.querySelector("#g-key").value.replace(/[\s\u200B-\u200D\uFEFF"'`]/g, "");
       if (!v) { toast(has ? "그대로 둘게요" : "키를 붙여 넣어 주세요"); if (has) closeSheet(); return; }
-      if (!/^[\w-]{30,60}$/.test(v)) { toast("키 모양이 이상해요. 다시 복사해 주세요"); return; }
+      if (v.length < 20 || v.length > 300 || /[^\x21-\x7E]/.test(v)) { toast("키 모양이 이상해요. 다시 복사해 주세요"); return; }
       try { localStorage.setItem(GEM_KEY, v); aiOff = false; toast("연결했어요"); } catch (e) { toast("이 브라우저는 저장이 막혀 있어요"); }
       closeSheet();
     };
