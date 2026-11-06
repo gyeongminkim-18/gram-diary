@@ -1040,6 +1040,7 @@ async function shrink(file) {
     return await new Promise(ok => c.toBlob(b => ok(b || file), "image/jpeg", 0.85));
   } catch (e) { return file; }
 }
+const errText = e => String((e && (e.detail || e.message || e.code)) || e || "알 수 없는 오류").slice(0, 160);
 const GEM_MODELS = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
 async function geminiJSON(prompt, photo, signal) {
   const parts = [{ text: prompt }];
@@ -1134,7 +1135,7 @@ function openMeal() {
         else if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"].includes(c)) { aiOff = true; toast("자동 계산을 쓸 수 없어요. 목록에서 골라 주세요"); }
         else if (c === "images_unavailable" || c === "image_rejected") { photo = null; toast("사진은 못 읽었어요. 글로 적어 주세요"); }
         else if (c === "rate_limited") toast("무료 한도에 걸렸어요. 잠시 뒤에 다시 해 주세요" + (e && e.detail ? " · " + e.detail.slice(0, 60) : ""));
-        else toast("계산을 못 했어요" + (e && e.detail ? " · " + e.detail : ". 다시 눌러 주세요"));
+        else toast("계산을 못 했어요 · " + errText(e));
       } finally { ctl = null; if (!$sheet.hidden) draw(s); }
     };
     const sv = s.querySelector("#m-save");
@@ -1165,6 +1166,7 @@ function openGemini() {
       <li>복사해서 아래에 붙여 넣기</li>
     </ol>
     <div class="field"><label for="g-key">Gemini API 키</label><input id="g-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${has ? "••••••••  (저장됨)" : "AIza..."}"></div>
+    ${has ? `<button class="btn btn-md btn-white btn-block" id="g-test" style="margin-bottom:8px">연결 테스트</button><p class="small" id="g-out" style="margin:0 0 16px;word-break:break-all;color:var(--ink-muted)"></p>` : ""}
     <div class="sheet-actions">
       ${has ? `<button class="btn btn-lg btn-outline" id="g-del">키 지우기</button>` : ""}
       <button class="btn btn-lg btn-solid" id="g-save">저장</button>
@@ -1175,6 +1177,16 @@ function openGemini() {
       if (v.length < 20 || v.length > 300 || /[^\x21-\x7E]/.test(v)) { toast("키 모양이 이상해요. 다시 복사해 주세요"); return; }
       try { localStorage.setItem(GEM_KEY, v); aiOff = false; toast("연결했어요"); } catch (e) { toast("이 브라우저는 저장이 막혀 있어요"); }
       closeSheet();
+    };
+    const tb = s.querySelector("#g-test");
+    if (tb) tb.onclick = async () => {
+      const out = s.querySelector("#g-out"); out.textContent = "확인 중…"; tb.disabled = true;
+      try {
+        const r = await geminiJSON('JSON 배열만 답해: [{"n":"사과","amt":"1개","kcal":정수}] — 사과 1개 칼로리', null);
+        let m = ""; try { m = localStorage.getItem(GEM_KEY + ".model") || ""; } catch (e) {}
+        out.textContent = "✅ 됩니다 · " + m + " · " + JSON.stringify(r).slice(0, 80);
+      } catch (e) { out.textContent = "❌ " + (e && e.code ? e.code + " · " : "") + errText(e); }
+      tb.disabled = false;
     };
     const d = s.querySelector("#g-del");
     if (d) d.onclick = () => { try { localStorage.removeItem(GEM_KEY); } catch (e) {} toast("지웠어요"); closeSheet(); };
