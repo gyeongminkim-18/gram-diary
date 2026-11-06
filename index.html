@@ -934,6 +934,7 @@ function viewMe() {
     <h2>기록 관리</h2>
     <div class="list">
       <button class="li" data-act="profile"><div class="main"><div class="t">시작·목표 몸무게 바꾸기</div><div class="s tab-nums">시작 ${p.startWeight.toFixed(1)}kg → 목표 ${p.goalWeight.toFixed(1)}kg</div></div>${IC.chev.replace("<svg", '<svg width="18" height="18"')}</button>
+      <button class="li" data-act="gemini"><div class="main"><div class="t">AI 칼로리 계산 키</div><div class="s">${gemKey() ? "Gemini 키 연결됨 · 이 기기에만 저장" : "Gemini 무료 키를 넣으면 웹앱에서도 자동 계산"}</div></div>${IC.chev.replace("<svg", '<svg width="18" height="18"')}</button>
       <button class="li" data-act="backup"><div class="main"><div class="t">백업 파일 받기</div><div class="s">${esc(backupAgo())}</div></div>${IC.chev.replace("<svg", '<svg width="18" height="18"')}</button>
       <button class="li" data-act="restore"><div class="main"><div class="t">백업 불러오기</div><div class="s">새 폰이나 기록이 지워졌을 때</div></div>${IC.chev.replace("<svg", '<svg width="18" height="18"')}</button>
       <button class="li" data-act="reset"><div class="main"><div class="t danger">모든 기록 지우기</div><div class="s">되돌릴 수 없어요</div></div>${IC.chev.replace("<svg", '<svg width="18" height="18"')}</button>
@@ -1026,21 +1027,46 @@ function openExercise() {
 let samplePromise = null;
 const getSample = () => (samplePromise ||= (window.claude?.use ? claude.use("sample").catch(() => null) : Promise.resolve(null)));
 let aiOff = false; // not_granted 등: 이번 보기에선 숨김
+const GEM_KEY = "gram-diary.gemini";
+const gemKey = () => { try { return localStorage.getItem(GEM_KEY) || ""; } catch (e) { return ""; } };
+const blobB64 = b => new Promise((ok, no) => { const r = new FileReader(); r.onload = () => ok(String(r.result).split(",")[1]); r.onerror = no; r.readAsDataURL(b); });
+// 사진을 1280px 이하 JPEG로 줄여 보낸다 (아이폰 원본은 수 MB)
+async function shrink(file) {
+  try {
+    const bmp = await createImageBitmap(file), sc = Math.min(1, 1280 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas"); c.width = Math.round(bmp.width * sc); c.height = Math.round(bmp.height * sc);
+    c.getContext("2d").drawImage(bmp, 0, 0, c.width, c.height);
+    return await new Promise(ok => c.toBlob(b => ok(b || file), "image/jpeg", 0.85));
+  } catch (e) { return file; }
+}
+async function geminiJSON(prompt, photo, signal) {
+  const parts = [{ text: prompt }];
+  if (photo) { const b = await shrink(photo); parts.push({ inline_data: { mime_type: b.type || "image/jpeg", data: await blobB64(b) } }); }
+  const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent", {
+    method: "POST", signal,
+    headers: { "Content-Type": "application/json", "x-goog-api-key": gemKey() },
+    body: JSON.stringify({ contents: [{ parts }], generationConfig: { responseMimeType: "application/json", temperature: 0.2 } }),
+  });
+  if (!r.ok) throw { code: r.status === 400 || r.status === 401 || r.status === 403 ? "bad_key" : r.status === 429 ? "rate_limited" : "upstream_error" };
+  const j = await r.json(), t = j?.candidates?.[0]?.content?.parts?.map(x => x.text || "").join("") || "";
+  const m = t.match(/\[[\s\S]*\]/); return JSON.parse(m ? m[0] : t);
+}
 
 function openMeal() {
   const h = new Date().getHours();
   let slot = h < 10 ? "아침" : h < 15 ? "점심" : h < 21 ? "저녁" : "간식";
-  let items = [], photo = null, ctl = null, ai = null, imgOk = false;
+  let items = [], photo = null, ctl = null, ai = null, imgOk = !!gemKey();
+  const canAI = () => (gemKey() || ai) && !aiOff;
   const total = () => items.reduce((s, x) => s + (Number(x.kcal) || 0), 0);
   const draw = s => {
     s.innerHTML = `<div class="grab"></div>
     <h3>먹은 것 기록</h3>
-    <p class="desc">${ai && !aiOff ? "먹은 걸 적거나 사진을 올리면 칼로리를 계산해 드려요." : "자주 먹는 음식을 누르거나 직접 적어 주세요."}</p>
-    <div class="ex-types" role="group" aria-label="끼니">${MEAL_SLOTS.map(n => `<button data-slot="${n}" aria-pressed="${n === slot}" class="${n === slot ? "" : "c-plain"}">${n}</button>`).join("")}</div>
-    ${ai && !aiOff ? `<div class="field"><label for="m-text">뭐 먹었어요?</label><textarea id="m-text" class="plain" placeholder="예) 김치찌개 한 그릇, 밥 반 공기, 계란말이 3조각">${esc(s._txt || "")}</textarea></div>
+    <p class="desc">${canAI() ? "먹은 걸 적거나 사진을 올리면 칼로리를 계산해 드려요." : "자주 먹는 음식을 누르거나 직접 적어 주세요."}</p>
+    <div class="ex-types" role="group" aria-label="끼니" style="margin-bottom:16px">${MEAL_SLOTS.map(n => `<button data-slot="${n}" aria-pressed="${n === slot}" class="${n === slot ? "" : "c-plain"}">${n}</button>`).join("")}</div>
+    ${canAI() ? `<div class="field"><label for="m-text">뭐 먹었어요?</label><textarea id="m-text" class="plain" placeholder="예) 김치찌개 한 그릇, 밥 반 공기, 계란말이 3조각">${esc(s._txt || "")}</textarea></div>
     ${imgOk ? `<label class="photo-pick"><input type="file" accept="image/*" id="m-photo" hidden>${photo ? `<img src="${URL.createObjectURL(photo)}" alt="올린 음식 사진">` : ""}<span>${photo ? "사진 바꾸기" : "📷 사진으로 올리기"}</span></label>` : ""}
     <button class="btn btn-lg btn-green btn-block" id="m-ai">${ctl ? "계산 중… (멈추기)" : "칼로리 계산하기"}</button>` : ""}
-    <details class="foods" ${ai && !aiOff ? "" : "open"}><summary>자주 먹는 음식에서 고르기</summary>
+    <details class="foods" ${canAI() ? "" : "open"}><summary>자주 먹는 음식에서 고르기</summary>
       <div class="food-chips">${FOOD_KCAL.map(([n, a, k], i) => `<button data-food="${i}">${n}<small>${k}</small></button>`).join("")}</div></details>
     <div class="list meal-items">${items.map((x, i) => `<div class="li"><div class="main"><div class="t">${esc(x.n)}</div><div class="s">${esc(x.amt || "")}</div></div>
       <input class="kc" data-kc="${i}" inputmode="numeric" value="${x.kcal}" aria-label="${esc(x.n)} 칼로리"><span class="small muted">kcal</span>
@@ -1072,17 +1098,19 @@ function openMeal() {
       if (!txt && !photo) { toast("먹은 걸 적거나 사진을 올려 주세요"); return; }
       ctl = new AbortController(); draw(s);
       try {
-        const res = await ai.json(
+        const prompt = 
           `너는 한국 음식 칼로리 계산기야. 사용자가 ${slot}에 먹은 것${photo ? "(첨부 사진 포함)" : ""}을 음식별로 나눠 1회 섭취량 기준 칼로리를 추정해.\n` +
           `양이 안 적혀 있으면 한국 일반 1인분으로 가정해. 음식이 아닌 건 빼.\n` +
-          `JSON 배열만 답해: [{"n":"음식 이름","amt":"추정 양(예: 1그릇, 200g)","kcal":정수}]\n\n먹은 것: ${txt || "(사진 참고)"}`,
-          { signal: ctl.signal, modelTier: "quick", ...(photo ? { images: [photo] } : {}) });
+          `JSON 배열만 답해: [{"n":"음식 이름","amt":"추정 양(예: 1그릇, 200g)","kcal":정수}]\n\n먹은 것: ${txt || "(사진 참고)"}`;
+        const res = gemKey() ? await geminiJSON(prompt, photo, ctl.signal)
+          : await ai.json(prompt, { signal: ctl.signal, modelTier: "quick", ...(photo ? { images: [photo] } : {}) });
         const got = (Array.isArray(res) ? res : []).filter(x => x && x.n).map(x => ({ n: String(x.n).slice(0, 40), amt: String(x.amt || "").slice(0, 30), kcal: Math.max(0, Math.round(Number(x.kcal) || 0)), ai: true }));
         if (!got.length) toast("음식을 못 찾았어요. 조금 더 자세히 적어 볼까요?");
         items.push(...got);
       } catch (e) {
         const c = e && e.code;
-        if (c === "cancelled") {}
+        if (c === "cancelled" || (e && e.name === "AbortError")) {}
+        else if (c === "bad_key") toast("Gemini 키가 맞지 않아요. 내 정보에서 확인해 주세요");
         else if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"].includes(c)) { aiOff = true; toast("자동 계산을 쓸 수 없어요. 목록에서 골라 주세요"); }
         else if (c === "images_unavailable" || c === "image_rejected") { photo = null; toast("사진은 못 읽었어요. 글로 적어 주세요"); }
         else if (c === "rate_limited") toast("잠시 뒤에 다시 해 주세요");
@@ -1102,6 +1130,33 @@ function openMeal() {
     ai = f;
     try { imgOk = !!(await f.limits())?.images; } catch (e) {}
     if (!$sheet.hidden && $sheet.querySelector("#m-save")) draw($sheet);
+  });
+}
+
+function openGemini() {
+  const has = !!gemKey();
+  openSheet(`
+    <h3>AI 칼로리 계산 키</h3>
+    <p class="desc">Google Gemini 무료 키를 넣으면 웹앱에서도 글·사진으로 칼로리를 계산해요. 키는 이 기기 브라우저에만 저장되고 백업 파일에도 들어가지 않아요.</p>
+    <ol class="small muted" style="margin:0 0 16px;padding-left:18px;line-height:1.7">
+      <li><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener" style="color:var(--green-deep);font-weight:700">aistudio.google.com/apikey</a> 열기</li>
+      <li>구글 계정으로 로그인 → "API 키 만들기"</li>
+      <li>복사해서 아래에 붙여 넣기</li>
+    </ol>
+    <div class="field"><label for="g-key">Gemini API 키</label><input id="g-key" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${has ? "••••••••  (저장됨)" : "AIza..."}"></div>
+    <div class="sheet-actions">
+      ${has ? `<button class="btn btn-lg btn-outline" id="g-del">키 지우기</button>` : ""}
+      <button class="btn btn-lg btn-solid" id="g-save">저장</button>
+    </div>`, s => {
+    s.querySelector("#g-save").onclick = () => {
+      const v = s.querySelector("#g-key").value.trim();
+      if (!v) { toast(has ? "그대로 둘게요" : "키를 붙여 넣어 주세요"); if (has) closeSheet(); return; }
+      if (!/^[\w-]{30,60}$/.test(v)) { toast("키 모양이 이상해요. 다시 복사해 주세요"); return; }
+      try { localStorage.setItem(GEM_KEY, v); aiOff = false; toast("연결했어요"); } catch (e) { toast("이 브라우저는 저장이 막혀 있어요"); }
+      closeSheet();
+    };
+    const d = s.querySelector("#g-del");
+    if (d) d.onclick = () => { try { localStorage.removeItem(GEM_KEY); } catch (e) {} toast("지웠어요"); closeSheet(); };
   });
 }
 
@@ -1282,6 +1337,7 @@ $app.addEventListener("click", e => {
     if (act === "weight") return openWeight();
     if (act === "ex-add") return openExercise();
     if (act === "meal-add") return openMeal();
+    if (act === "gemini") return openGemini();
     if (act === "profile") return openProfile(false);
     if (act === "reset") return openReset();
     if (act === "backup") return exportBackup();
