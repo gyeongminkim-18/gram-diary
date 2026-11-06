@@ -319,7 +319,8 @@ input, select { font: inherit; letter-spacing: inherit; color: var(--ink); }
 @keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.12); } }
 
 /* toast (SEED Snackbar) */
-.toast { position: fixed; left: 50%; bottom: calc(100px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 20px); background: var(--ink); color: #fff; padding: var(--x3) var(--x5); border-radius: var(--r-pill); font-size: var(--t4); font-weight: 600; opacity: 0; transition: all .25s ease; z-index: 50; pointer-events: none; white-space: nowrap; max-width: calc(100% - 32px); overflow: hidden; text-overflow: ellipsis; }
+.toast { position: fixed; left: 50%; bottom: calc(100px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 20px); background: var(--ink); color: #fff; padding: var(--x3) var(--x5); border-radius: var(--r-pill); font-size: var(--t4); font-weight: 600; opacity: 0; transition: all .25s ease; z-index: 50; pointer-events: none; max-width: calc(100% - 32px); width: max-content; text-align: center; line-height: 1.4; word-break: keep-all; }
+.toast:not(:empty) { border-radius: 20px; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 .sync { font-size: var(--t2); color: var(--ink-subtle); text-align: center; padding-top: var(--x4); }
 .danger { color: var(--gain); }
@@ -1039,17 +1040,34 @@ async function shrink(file) {
     return await new Promise(ok => c.toBlob(b => ok(b || file), "image/jpeg", 0.85));
   } catch (e) { return file; }
 }
+const GEM_MODELS = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-2.0-flash"];
 async function geminiJSON(prompt, photo, signal) {
   const parts = [{ text: prompt }];
   if (photo) { const b = await shrink(photo); parts.push({ inline_data: { mime_type: b.type || "image/jpeg", data: await blobB64(b) } }); }
-  const r = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent", {
-    method: "POST", signal,
-    headers: { "Content-Type": "application/json", "x-goog-api-key": gemKey() },
-    body: JSON.stringify({ contents: [{ parts }], generationConfig: { responseMimeType: "application/json", temperature: 0.2 } }),
-  });
-  if (!r.ok) throw { code: r.status === 400 || r.status === 401 || r.status === 403 ? "bad_key" : r.status === 429 ? "rate_limited" : "upstream_error" };
-  const j = await r.json(), t = j?.candidates?.[0]?.content?.parts?.map(x => x.text || "").join("") || "";
-  const m = t.match(/\[[\s\S]*\]/); return JSON.parse(m ? m[0] : t);
+  const body = JSON.stringify({ contents: [{ parts }], generationConfig: { responseMimeType: "application/json", temperature: 0.2 } });
+  let last = null, saved = null; try { saved = localStorage.getItem(GEM_KEY + ".model"); } catch (e) {}
+  const models = saved ? [saved, ...GEM_MODELS.filter(m => m !== saved)] : GEM_MODELS;
+  for (const m of models) {
+    let r;
+    try {
+      r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
+        method: "POST", signal, headers: { "Content-Type": "application/json", "x-goog-api-key": gemKey() }, body });
+    } catch (e) { if (e && e.name === "AbortError") throw e; throw { code: "network", detail: "인터넷 연결" }; }
+    const j = await r.json().catch(() => null);
+    if (!r.ok) {
+      const msg = j?.error?.message || "", st = j?.error?.status || "";
+      last = { code: "upstream_error", detail: `${r.status} ${st} ${msg}`.trim().slice(0, 140) };
+      if (/API key not valid|API_KEY_INVALID/i.test(msg) || r.status === 401 || r.status === 403 && /key/i.test(msg)) throw { code: "bad_key", detail: last.detail };
+      if (r.status === 404 || r.status === 429 || r.status === 503 || r.status === 500 || /not found|not supported|quota/i.test(msg)) continue; // 다음 모델로
+      throw last;
+    }
+    const t = j?.candidates?.[0]?.content?.parts?.map(x => x.text || "").join("") || "";
+    const mt = t.match(/\[[\s\S]*\]/);
+    try { const out = JSON.parse(mt ? mt[0] : t); try { localStorage.setItem(GEM_KEY + ".model", m); } catch (e) {} return out; }
+    catch (e) { last = { code: "upstream_error", detail: "답을 못 읽었어요: " + t.slice(0, 80) }; }
+  }
+  if (last && /quota|429/i.test(last.detail)) last.code = "rate_limited";
+  throw last || { code: "upstream_error" };
 }
 
 function openMeal() {
@@ -1115,8 +1133,8 @@ function openMeal() {
         else if (c === "bad_key") toast("Gemini 키가 맞지 않아요. 내 정보에서 확인해 주세요");
         else if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"].includes(c)) { aiOff = true; toast("자동 계산을 쓸 수 없어요. 목록에서 골라 주세요"); }
         else if (c === "images_unavailable" || c === "image_rejected") { photo = null; toast("사진은 못 읽었어요. 글로 적어 주세요"); }
-        else if (c === "rate_limited") toast("잠시 뒤에 다시 해 주세요");
-        else toast("계산을 못 했어요. 다시 눌러 주세요");
+        else if (c === "rate_limited") toast("무료 한도에 걸렸어요. 잠시 뒤에 다시 해 주세요" + (e && e.detail ? " · " + e.detail.slice(0, 60) : ""));
+        else toast("계산을 못 했어요" + (e && e.detail ? " · " + e.detail : ". 다시 눌러 주세요"));
       } finally { ctl = null; if (!$sheet.hidden) draw(s); }
     };
     const sv = s.querySelector("#m-save");
@@ -1306,7 +1324,7 @@ function openReset() {
 
 /* ───────── events ───────── */
 let toastT;
-function toast(t) { const el = document.getElementById("toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("show"), 2000); }
+function toast(t) { const el = document.getElementById("toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toastT); toastT = setTimeout(() => el.classList.remove("show"), t.length > 30 ? 7000 : 2000); }
 
 function openQuick() {
   openSheet(`
