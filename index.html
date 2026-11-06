@@ -1065,7 +1065,7 @@ function openMeal() {
     <div class="ex-types" role="group" aria-label="끼니" style="margin-bottom:16px">${MEAL_SLOTS.map(n => `<button data-slot="${n}" aria-pressed="${n === slot}" class="${n === slot ? "" : "c-plain"}">${n}</button>`).join("")}</div>
     <div class="field"><label for="m-text">뭐 먹었어요?</label><textarea id="m-text" class="plain" placeholder="예) 김치찌개 한 그릇, 밥 반 공기, 계란말이 3조각">${esc(s._txt || "")}</textarea></div>
     ${canAI() && imgOk ? `<label class="photo-pick"><input type="file" accept="image/*" id="m-photo" hidden>${photo ? `<img src="${URL.createObjectURL(photo)}" alt="올린 음식 사진">` : ""}<span>${photo ? "사진 바꾸기" : "📷 사진으로 올리기"}</span></label>` : ""}
-    <button class="btn btn-lg btn-green btn-block" id="m-ai">${ctl ? "계산 중… (멈추기)" : "칼로리 계산하기"}</button>
+    <button class="btn btn-lg ${items.length ? "btn-outline" : "btn-solid"} btn-block" id="m-ai">${ctl ? "계산 중… (멈추기)" : "칼로리 계산하기"}</button>
     ${canAI() ? "" : `<p class="small muted" style="margin:8px 0 0;text-align:center">자동 계산은 내 정보 → AI 칼로리 계산 키를 넣으면 돼요</p>`}
     <details class="foods"><summary>자주 먹는 음식에서 고르기</summary>
       <div class="food-chips">${FOOD_KCAL.map(([n, a, k], i) => `<button data-food="${i}">${n}<small>${k}</small></button>`).join("")}</div></details>
@@ -1075,7 +1075,7 @@ function openMeal() {
       <div class="li"><input class="add-n" id="m-n" placeholder="직접 추가 (음식 이름)" aria-label="음식 이름"><input class="kc" id="m-k" inputmode="numeric" placeholder="0" aria-label="칼로리"><span class="small muted">kcal</span><button class="mini on" id="m-add" aria-label="추가">+</button></div>
     </div>
     <p class="desc tab-nums" style="text-align:center">합계 <b>${total().toLocaleString()}</b>kcal${items.some(x => x.ai) ? " · AI 추정값이라 고쳐도 돼요" : ""}</p>
-    <button class="btn btn-lg btn-solid btn-block" id="m-save" ${items.length ? "" : "disabled"}>저장</button>`;
+    ${items.length ? `<button class="btn btn-lg btn-solid btn-block" id="m-save">저장</button>` : ""}`;
     bind(s);
   };
   const keepText = s => { const ta = s.querySelector("#m-text"); if (ta) s._txt = ta.value; };
@@ -1119,7 +1119,8 @@ function openMeal() {
         else toast("계산을 못 했어요. 다시 눌러 주세요");
       } finally { ctl = null; if (!$sheet.hidden) draw(s); }
     };
-    s.querySelector("#m-save").onclick = () => {
+    const sv = s.querySelector("#m-save");
+    if (sv) sv.onclick = () => {
       if (!items.length) return;
       const t = todayKey(), clean = items.map(({ n, amt, kcal }) => ({ n, amt, kcal: Number(kcal) || 0 }));
       patchDay(t, { meals: [...(day(t).meals || []), { slot, items: clean, kcal: total() }] });
