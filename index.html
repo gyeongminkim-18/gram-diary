@@ -1061,28 +1061,33 @@ async function geminiJSON(prompt, photo, signal) {
   if (photo) { const b = await shrink(photo); parts.push({ inline_data: { mime_type: b.type || "image/jpeg", data: await blobB64(b) } }); }
   const schema = { type: "ARRAY", items: { type: "OBJECT", properties: { n: { type: "STRING" }, amt: { type: "STRING" }, kcal: { type: "INTEGER" } }, required: ["n", "kcal"] } };
   const mk = think => JSON.stringify({ contents: [{ parts }], generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0.2, maxOutputTokens: 2048, ...(think ? { thinkingConfig: think } : {}) } });
-  let noThink = false;
+  let noThink = false; const T0 = Date.now(); const log = []; window.__gemLog = log;
+  const sec = () => Math.round((Date.now() - T0) / 1000);
   let last = null, saved = null; try { saved = localStorage.getItem(GEM_KEY + ".model"); } catch (e) {}
   const models = saved ? [saved, ...GEM_MODELS.filter(m => m !== saved)] : [...GEM_MODELS];
   let listed = false;
-  for (let i = 0; i < models.length && i < 8; i++) {
+  for (let i = 0; i < models.length && i < 6; i++) {
     const m = models[i];
+    if (Date.now() - T0 > 40000) { last = { code: "upstream_error", detail: "40초 안에 답을 못 받았어요" }; break; }
+    const t1 = Date.now();
     let r;
     const think = noThink ? null : /gemini-2\./.test(m) ? { thinkingBudget: 0 } : { thinkingLevel: "low" };
-    const tc = new AbortController(), timer = setTimeout(() => tc.abort(), 45000);
+    const tc = new AbortController(), timer = setTimeout(() => tc.abort(), 20000);
     const onAbort = () => tc.abort(); signal?.addEventListener("abort", onAbort);
     try {
       r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
         method: "POST", signal: tc.signal, headers: { "Content-Type": "application/json", "x-goog-api-key": gemKey() }, body: mk(think) });
     } catch (e) {
       if (signal?.aborted) throw { code: "cancelled" };
-      if (tc.signal.aborted) { last = { code: "upstream_error", detail: `${m} 응답이 45초 넘게 없어요` }; continue; }
+      if (tc.signal.aborted) { log.push(`${m}: 20초 무응답`); last = { code: "upstream_error", detail: `${m} 응답이 20초 넘게 없어요` }; continue; }
+      log.push(`${m}: 연결 실패 ${e && e.message || ""}`);
       throw { code: "network", detail: "인터넷 연결을 확인해 주세요" };
     } finally { clearTimeout(timer); signal?.removeEventListener("abort", onAbort); }
     const j = await r.json().catch(() => null);
     if (!r.ok) {
       const msg = j?.error?.message || "", st = j?.error?.status || "";
       last = { code: "upstream_error", detail: `${r.status} ${st} ${msg}`.trim().slice(0, 140) };
+      log.push(`${m}: ${r.status} ${msg.slice(0, 60)} (${((Date.now() - t1) / 1000).toFixed(1)}초)`);
       if (r.status === 400 && /thinking/i.test(msg) && !noThink) { noThink = true; i--; continue; } // 이 모델은 thinking 설정을 못 받음
       if (/API key not valid|API_KEY_INVALID/i.test(msg) || r.status === 401 || r.status === 403 && /key/i.test(msg)) throw { code: "bad_key", detail: last.detail };
       if (r.status === 404 || r.status === 429 || r.status === 503 || r.status === 500 || /not found|not supported|quota|no longer/i.test(msg)) {
@@ -1094,6 +1099,7 @@ async function geminiJSON(prompt, photo, signal) {
       }
       throw last;
     }
+    log.push(`${m}: 200 (${((Date.now() - t1) / 1000).toFixed(1)}초)`);
     const cand = j?.candidates?.[0];
     const t = (cand?.content?.parts || []).filter(x => !x.thought).map(x => x.text || "").join("");
     if (!t) { last = { code: "upstream_error", detail: `빈 답 (${cand?.finishReason || j?.promptFeedback?.blockReason || "이유 없음"})` }; continue; }
@@ -1107,7 +1113,7 @@ async function geminiJSON(prompt, photo, signal) {
     } catch (e) { last = { code: "upstream_error", detail: "답을 못 읽었어요: " + t.slice(0, 80) }; }
   }
   if (last && /quota|429/i.test(last.detail)) last.code = "rate_limited";
-  throw last || { code: "upstream_error" };
+  const err = last || { code: "upstream_error" }; err.log = log.join("\n"); throw err;
 }
 
 function openMeal() {
@@ -1132,6 +1138,7 @@ function openMeal() {
       <button class="mini" data-rm="${i}" aria-label="${esc(x.n)} 빼기">−</button></div>`).join("")}
       <div class="li"><input class="add-n" id="m-n" placeholder="직접 추가 (음식 이름)" aria-label="음식 이름"><input class="kc" id="m-k" inputmode="numeric" placeholder="0" aria-label="칼로리"><span class="small muted">kcal</span><button class="mini on" id="m-add" aria-label="추가">+</button></div>
     </div>
+    ${s._log ? `<pre class="small" style="white-space:pre-wrap;word-break:break-all;background:#f5f8f6;border-radius:12px;padding:10px;margin:12px 0;color:var(--ink-muted)">${esc(s._log)}</pre>` : ""}
     <p class="desc tab-nums" style="text-align:center">합계 <b>${total().toLocaleString()}</b>kcal${items.some(x => x.ai) ? " · AI 추정값이라 고쳐도 돼요" : ""}</p>
     ${items.length ? `<button class="btn btn-lg btn-solid btn-block" id="m-save">저장</button>` : ""}`;
     bind(s);
@@ -1176,6 +1183,7 @@ function openMeal() {
         else if (c === "images_unavailable" || c === "image_rejected") { photo = null; toast("사진은 못 읽었어요. 글로 적어 주세요"); }
         else if (c === "rate_limited") toast("무료 한도에 걸렸어요. 잠시 뒤에 다시 해 주세요" + (e && e.detail ? " · " + e.detail.slice(0, 60) : ""));
         else toast("계산을 못 했어요 · " + errText(e));
+        s._log = e && e.log ? e.log : "";
       } finally {
         ctl = null;
         if (!$sheet.hidden) { draw(s); if (s._jump) { s._jump = false; s.querySelector(".meal-items")?.scrollIntoView({ behavior: "smooth", block: "start" }); } }
