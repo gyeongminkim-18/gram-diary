@@ -474,7 +474,30 @@ const exMin = k => (day(k).ex || []).reduce((s, e) => s + e.min, 0);
 const exKcal = k => (day(k).ex || []).reduce((s, e) => s + e.kcal, 0);
 
 /* ───────── cheer ───────── */
+const strong = () => (S.profile?.tone ?? "strong") === "strong";
+function cheersStrong() {
+  const lw = latestWeight(), p = S.profile, t = todayKey(), out = [];
+  if (lw) {
+    const d = lw.w - p.startWeight, e = equivalent(d), pr = prevWeightBefore(lw.k);
+    if (d > 0.05) out.push(`시작보다 ${d.toFixed(1)}kg 늘었어요${e ? ` (${equivPhrase(e)})` : ""}. 오늘부터 다시 조입니다.`);
+    if (d < -0.05) out.push(`${(-d).toFixed(1)}kg 뺐어요. 여기서 풀면 그대로 돌아옵니다. 멈추지 마세요.`);
+    if (pr != null && lw.w > pr) out.push(`지난번보다 ${(lw.w - pr).toFixed(1)}kg 올랐어요. 오늘 야식은 없습니다.`);
+    if (pr != null && lw.w < pr) out.push("줄었다고 보상으로 먹지 마세요. 그게 제일 흔한 실패 패턴이에요.");
+  } else out.push("체중계부터 올라가세요. 숫자를 봐야 시작됩니다.");
+  if (typeof day(t).weight !== "number" && lw) out.push("오늘 몸무게 아직 안 쟀어요. 피하지 말고 지금 재세요.");
+  const R = rec(), left = R.kcal + exKcal(t) - mealKcal(t);
+  if (mealKcal(t) > 0) out.push(left >= 0 ? `오늘 남은 칼로리 ${left.toLocaleString()}kcal. 넘기지 마세요.` : `오늘 ${(-left).toLocaleString()}kcal 넘었어요. 저녁은 단백질과 채소만.`);
+  if (exMin(t) === 0) out.push("오늘 운동 0분이에요. 핑계 대지 말고 30분 걸으세요. 지금.");
+  out.push("배고픈 게 아니라 심심한 거예요. 물 한 컵 마시고 10분 버티세요.");
+  out.push("먹기 전에 기록부터. 적기 싫은 음식이면 먹지 마세요.");
+  out.push("밤 9시 이후엔 주방 출입 금지예요.");
+  out.push("밥은 반 공기. 나머지는 단백질로 채우세요.");
+  out.push("엘리베이터 말고 계단. 오늘은 예외 없어요.");
+  out.push("단 음료는 마시는 순간 한 끼예요. 물이나 아메리카노로 바꾸세요.");
+  return out;
+}
 function cheers() {
+  if (strong()) return cheersStrong();
   const lw = latestWeight(), p = S.profile;
   const out = [];
   if (lw) {
@@ -685,7 +708,9 @@ function viewHome() {
   }
   const tw = day(t).weight, prev = prevWeightBefore(t);
   const wDiff = typeof tw === "number" && prev != null ? tw - prev : null;
-  const title = typeof tw !== "number" ? "오늘 몸무게를 재 볼까요?" : delta < -0.05 ? "잘 빠지고 있어요" : "오늘도 천천히 가요";
+  const title = strong()
+    ? (typeof tw !== "number" ? "체중계부터 올라가세요" : delta < -0.05 ? "좋아요, 멈추지 마세요" : "오늘 다시 조입니다")
+    : (typeof tw !== "number" ? "오늘 몸무게를 재 볼까요?" : delta < -0.05 ? "잘 빠지고 있어요" : "오늘도 천천히 가요");
   const R = rec();
   const water = day(t).water || 0, cups = Math.ceil(R.water / CUP), filled = Math.floor(water / CUP);
   const drops = Array.from({ length: Math.max(cups, filled) }, (_, i) =>
@@ -752,7 +777,7 @@ function viewHome() {
   </section>
 
   <section class="card glass cheer" aria-label="응원 한마디">
-    <div class="row"><div class="k">${IC.spark}오늘의 응원</div><button class="btn btn-sm btn-white" data-act="cheer">다른 말</button></div>
+    <div class="row"><div class="k">${IC.spark}${strong() ? "오늘의 한마디" : "오늘의 응원"}</div><button class="btn btn-sm btn-white" data-act="cheer">다른 말</button></div>
     <p>${esc(msg)}</p>
     <div class="dots" aria-hidden="true">${list.map((_, i) => `<i class="${i === idx ? "on" : ""}"></i>`).join("")}</div>
   </section>
@@ -935,6 +960,7 @@ function viewMe() {
     <h2>기록 관리</h2>
     <div class="list">
       <button class="li" data-act="profile"><div class="main"><div class="t">시작·목표 몸무게 바꾸기</div><div class="s tab-nums">시작 ${p.startWeight.toFixed(1)}kg → 목표 ${p.goalWeight.toFixed(1)}kg</div></div>${IC.chev.replace("<svg", '<svg width="18" height="18"')}</button>
+      <button class="li" data-act="tone"><div class="main"><div class="t">응원 말투</div><div class="s">${strong() ? "강하게 · 누르면 다정하게로 바꿔요" : "다정하게 · 누르면 강하게로 바꿔요"}</div></div><span class="chip">${strong() ? "강하게" : "다정하게"}</span></button>
       <button class="li" data-act="gemini"><div class="main"><div class="t">AI 칼로리 계산 키</div><div class="s">${gemKey() ? "Gemini 키 연결됨 · 이 기기에만 저장" : "Gemini 무료 키를 넣으면 웹앱에서도 자동 계산"}</div></div>${IC.chev.replace("<svg", '<svg width="18" height="18"')}</button>
       ${!window.claude && "serviceWorker" in navigator ? `<button class="li" data-act="refresh"><div class="main"><div class="t">최신 버전으로 새로 고침</div><div class="s">업데이트가 안 보일 때 눌러요 · 기록은 그대로예요</div></div>${IC.chev.replace("<svg", '<svg width="18" height="18"')}</button>` : ""}
       <button class="li" data-act="backup"><div class="main"><div class="t">백업 파일 받기</div><div class="s">${esc(backupAgo())}</div></div>${IC.chev.replace("<svg", '<svg width="18" height="18"')}</button>
@@ -1455,6 +1481,7 @@ $app.addEventListener("click", e => {
     if (act === "meal-add") return openMeal();
     if (act === "gemini") return openGemini();
     if (act === "refresh") return hardRefresh();
+    if (act === "tone") { S.profile = { ...S.profile, tone: strong() ? "soft" : "strong" }; saveProfile(); S.cheerIdx = 0; toast(strong() ? "강하게 갑니다" : "다정하게 바꿨어요"); return render(); }
     if (act === "profile") return openProfile(false);
     if (act === "reset") return openReset();
     if (act === "backup") return exportBackup();
