@@ -1059,21 +1059,31 @@ async function gemListModels(signal) {
 async function geminiJSON(prompt, photo, signal) {
   const parts = [{ text: prompt }];
   if (photo) { const b = await shrink(photo); parts.push({ inline_data: { mime_type: b.type || "image/jpeg", data: await blobB64(b) } }); }
-  const body = JSON.stringify({ contents: [{ parts }], generationConfig: { responseMimeType: "application/json", temperature: 0.2 } });
+  const schema = { type: "ARRAY", items: { type: "OBJECT", properties: { n: { type: "STRING" }, amt: { type: "STRING" }, kcal: { type: "INTEGER" } }, required: ["n", "kcal"] } };
+  const mk = think => JSON.stringify({ contents: [{ parts }], generationConfig: { responseMimeType: "application/json", responseSchema: schema, temperature: 0.2, maxOutputTokens: 2048, ...(think ? { thinkingConfig: think } : {}) } });
+  let noThink = false;
   let last = null, saved = null; try { saved = localStorage.getItem(GEM_KEY + ".model"); } catch (e) {}
   const models = saved ? [saved, ...GEM_MODELS.filter(m => m !== saved)] : [...GEM_MODELS];
   let listed = false;
   for (let i = 0; i < models.length && i < 8; i++) {
     const m = models[i];
     let r;
+    const think = noThink ? null : /gemini-2\./.test(m) ? { thinkingBudget: 0 } : { thinkingLevel: "low" };
+    const tc = new AbortController(), timer = setTimeout(() => tc.abort(), 45000);
+    const onAbort = () => tc.abort(); signal?.addEventListener("abort", onAbort);
     try {
       r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`, {
-        method: "POST", signal, headers: { "Content-Type": "application/json", "x-goog-api-key": gemKey() }, body });
-    } catch (e) { if (e && e.name === "AbortError") throw e; throw { code: "network", detail: "인터넷 연결" }; }
+        method: "POST", signal: tc.signal, headers: { "Content-Type": "application/json", "x-goog-api-key": gemKey() }, body: mk(think) });
+    } catch (e) {
+      if (signal?.aborted) throw { code: "cancelled" };
+      if (tc.signal.aborted) { last = { code: "upstream_error", detail: `${m} 응답이 45초 넘게 없어요` }; continue; }
+      throw { code: "network", detail: "인터넷 연결을 확인해 주세요" };
+    } finally { clearTimeout(timer); signal?.removeEventListener("abort", onAbort); }
     const j = await r.json().catch(() => null);
     if (!r.ok) {
       const msg = j?.error?.message || "", st = j?.error?.status || "";
       last = { code: "upstream_error", detail: `${r.status} ${st} ${msg}`.trim().slice(0, 140) };
+      if (r.status === 400 && /thinking/i.test(msg) && !noThink) { noThink = true; i--; continue; } // 이 모델은 thinking 설정을 못 받음
       if (/API key not valid|API_KEY_INVALID/i.test(msg) || r.status === 401 || r.status === 403 && /key/i.test(msg)) throw { code: "bad_key", detail: last.detail };
       if (r.status === 404 || r.status === 429 || r.status === 503 || r.status === 500 || /not found|not supported|quota|no longer/i.test(msg)) {
         if (m === saved) { try { localStorage.removeItem(GEM_KEY + ".model"); } catch (e) {} }
@@ -1084,10 +1094,17 @@ async function geminiJSON(prompt, photo, signal) {
       }
       throw last;
     }
-    const t = j?.candidates?.[0]?.content?.parts?.map(x => x.text || "").join("") || "";
-    const mt = t.match(/\[[\s\S]*\]/);
-    try { const out = JSON.parse(mt ? mt[0] : t); try { localStorage.setItem(GEM_KEY + ".model", m); } catch (e) {} return out; }
-    catch (e) { last = { code: "upstream_error", detail: "답을 못 읽었어요: " + t.slice(0, 80) }; }
+    const cand = j?.candidates?.[0];
+    const t = (cand?.content?.parts || []).filter(x => !x.thought).map(x => x.text || "").join("");
+    if (!t) { last = { code: "upstream_error", detail: `빈 답 (${cand?.finishReason || j?.promptFeedback?.blockReason || "이유 없음"})` }; continue; }
+    try {
+      const mt = t.match(/\[[\s\S]*\]/);
+      let out = JSON.parse(mt ? mt[0] : t);
+      if (!Array.isArray(out)) out = Object.values(out || {}).find(Array.isArray) || [out];
+      out = out.map(x => ({ n: x.n ?? x.name ?? x.food ?? x["음식"], amt: x.amt ?? x.amount ?? x.serving ?? "", kcal: x.kcal ?? x.calories ?? x.calorie ?? x["칼로리"] }));
+      try { localStorage.setItem(GEM_KEY + ".model", m); } catch (e) {}
+      return out;
+    } catch (e) { last = { code: "upstream_error", detail: "답을 못 읽었어요: " + t.slice(0, 80) }; }
   }
   if (last && /quota|429/i.test(last.detail)) last.code = "rate_limited";
   throw last || { code: "upstream_error" };
@@ -1140,6 +1157,7 @@ function openMeal() {
       if (!txt && !photo) { toast("먹은 걸 적거나 사진을 올려 주세요"); return; }
       if (!canAI()) { swapSheet(openGemini); return; }
       ctl = new AbortController(); draw(s);
+      const t0 = Date.now(), tick = setInterval(() => { const b = s.querySelector("#m-ai"); if (b && ctl) b.textContent = `계산 중… ${Math.round((Date.now() - t0) / 1000)}초 (누르면 멈춤)`; else clearInterval(tick); }, 1000);
       try {
         const prompt = 
           `너는 한국 음식 칼로리 계산기야. 사용자가 ${slot}에 먹은 것${photo ? "(첨부 사진 포함)" : ""}을 음식별로 나눠 1회 섭취량 기준 칼로리를 추정해.\n` +
@@ -1149,7 +1167,7 @@ function openMeal() {
           : await ai.json(prompt, { signal: ctl.signal, modelTier: "quick", ...(photo ? { images: [photo] } : {}) });
         const got = (Array.isArray(res) ? res : []).filter(x => x && x.n).map(x => ({ n: String(x.n).slice(0, 40), amt: String(x.amt || "").slice(0, 30), kcal: Math.max(0, Math.round(Number(x.kcal) || 0)), ai: true }));
         if (!got.length) toast("음식을 못 찾았어요. 조금 더 자세히 적어 볼까요?");
-        items.push(...got);
+        items.push(...got); if (got.length) s._jump = true;
       } catch (e) {
         const c = e && e.code;
         if (c === "cancelled" || (e && e.name === "AbortError")) {}
@@ -1158,7 +1176,10 @@ function openMeal() {
         else if (c === "images_unavailable" || c === "image_rejected") { photo = null; toast("사진은 못 읽었어요. 글로 적어 주세요"); }
         else if (c === "rate_limited") toast("무료 한도에 걸렸어요. 잠시 뒤에 다시 해 주세요" + (e && e.detail ? " · " + e.detail.slice(0, 60) : ""));
         else toast("계산을 못 했어요 · " + errText(e));
-      } finally { ctl = null; if (!$sheet.hidden) draw(s); }
+      } finally {
+        ctl = null;
+        if (!$sheet.hidden) { draw(s); if (s._jump) { s._jump = false; s.querySelector(".meal-items")?.scrollIntoView({ behavior: "smooth", block: "start" }); } }
+      }
     };
     const sv = s.querySelector("#m-save");
     if (sv) sv.onclick = () => {
