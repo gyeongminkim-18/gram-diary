@@ -936,6 +936,7 @@ function viewMe() {
     <div class="list">
       <button class="li" data-act="profile"><div class="main"><div class="t">시작·목표 몸무게 바꾸기</div><div class="s tab-nums">시작 ${p.startWeight.toFixed(1)}kg → 목표 ${p.goalWeight.toFixed(1)}kg</div></div>${IC.chev.replace("<svg", '<svg width="18" height="18"')}</button>
       <button class="li" data-act="gemini"><div class="main"><div class="t">AI 칼로리 계산 키</div><div class="s">${gemKey() ? "Gemini 키 연결됨 · 이 기기에만 저장" : "Gemini 무료 키를 넣으면 웹앱에서도 자동 계산"}</div></div>${IC.chev.replace("<svg", '<svg width="18" height="18"')}</button>
+      ${!window.claude && "serviceWorker" in navigator ? `<button class="li" data-act="refresh"><div class="main"><div class="t">최신 버전으로 새로 고침</div><div class="s">업데이트가 안 보일 때 눌러요 · 기록은 그대로예요</div></div>${IC.chev.replace("<svg", '<svg width="18" height="18"')}</button>` : ""}
       <button class="li" data-act="backup"><div class="main"><div class="t">백업 파일 받기</div><div class="s">${esc(backupAgo())}</div></div>${IC.chev.replace("<svg", '<svg width="18" height="18"')}</button>
       <button class="li" data-act="restore"><div class="main"><div class="t">백업 불러오기</div><div class="s">새 폰이나 기록이 지워졌을 때</div></div>${IC.chev.replace("<svg", '<svg width="18" height="18"')}</button>
       <button class="li" data-act="reset"><div class="main"><div class="t danger">모든 기록 지우기</div><div class="s">되돌릴 수 없어요</div></div>${IC.chev.replace("<svg", '<svg width="18" height="18"')}</button>
@@ -1206,6 +1207,18 @@ function openMeal() {
   });
 }
 
+async function hardRefresh() {
+  toast("새 버전 받는 중…");
+  try {
+    const regs = await navigator.serviceWorker?.getRegistrations?.() || [];
+    await Promise.all(regs.map(r => r.update().catch(() => {})));
+    if (window.caches) { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); }
+  } catch (e) {}
+  location.replace(location.pathname + "?r=" + Date.now()); // 기록(localStorage)은 지우지 않는다
+}
+// 홈 화면 앱은 다시 열 때 새 버전이 있는지 확인
+document.addEventListener("visibilitychange", () => { if (!document.hidden) navigator.serviceWorker?.getRegistration?.().then(r => r && r.update()).catch(() => {}); });
+
 function openGemini() {
   const has = !!gemKey();
   openSheet(`
@@ -1422,6 +1435,7 @@ $app.addEventListener("click", e => {
     if (act === "ex-add") return openExercise();
     if (act === "meal-add") return openMeal();
     if (act === "gemini") return openGemini();
+    if (act === "refresh") return hardRefresh();
     if (act === "profile") return openProfile(false);
     if (act === "reset") return openReset();
     if (act === "backup") return exportBackup();
