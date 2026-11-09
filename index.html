@@ -479,7 +479,7 @@ function cheersStrong() {
   const lw = latestWeight(), p = S.profile, t = todayKey(), out = [];
   if (lw) {
     const d = lw.w - p.startWeight, e = equivalent(d), pr = prevWeightBefore(lw.k);
-    if (d > 0.05) out.push(`시작보다 ${d.toFixed(1)}kg 늘었어요${e ? ` (${equivPhrase(e)})` : ""}. 오늘부터 다시 조입니다.`);
+    if (d > 0.05) out.push(`시작보다 ${d.toFixed(1)}kg 늘었어요${e ? ` (${equivPhrase(e)})` : ""}. 오늘은 빡세게 갑니다.`);
     if (d < -0.05) out.push(`${(-d).toFixed(1)}kg 뺐어요. 여기서 풀면 그대로 돌아옵니다. 멈추지 마세요.`);
     if (pr != null && lw.w > pr) out.push(`지난번보다 ${(lw.w - pr).toFixed(1)}kg 올랐어요. 오늘 야식은 없습니다.`);
     if (pr != null && lw.w < pr) out.push("줄었다고 보상으로 먹지 마세요. 그게 제일 흔한 실패 패턴이에요.");
@@ -709,7 +709,7 @@ function viewHome() {
   const tw = day(t).weight, prev = prevWeightBefore(t);
   const wDiff = typeof tw === "number" && prev != null ? tw - prev : null;
   const title = strong()
-    ? (typeof tw !== "number" ? "체중계부터 올라가세요" : delta < -0.05 ? "좋아요, 멈추지 마세요" : "오늘 다시 조입니다")
+    ? (typeof tw !== "number" ? "체중계부터 올라가세요" : delta < -0.05 ? "좋아요, 멈추지 마세요" : "오늘은 빡세게 갑니다")
     : (typeof tw !== "number" ? "오늘 몸무게를 재 볼까요?" : delta < -0.05 ? "잘 빠지고 있어요" : "오늘도 천천히 가요");
   const R = rec();
   const water = day(t).water || 0, cups = Math.ceil(R.water / CUP), filled = Math.floor(water / CUP);
